@@ -91,15 +91,18 @@ model Document {
 }
 
 model Entry {
-  id               String   @id @default(uuid())
-  // ... your existing Entry fields ...
-  adminId          String
-  createdBy        String
-  createdAt        DateTime @default(now())
+  id         String   @id @default(uuid())
+  platform   String
+  fullName   String
+  email      String
+  adminId    String
+  createdBy  String
+  createdAt  DateTime @default(now())
 
-  admin            User     @relation("adminEntries", fields: [adminId], references: [id])
-  creator          User     @relation("creatorEntries", fields: [createdBy], references: [id])
+  admin      User     @relation("adminEntries", fields: [adminId], references: [id])
+  creator    User     @relation("creatorEntries", fields: [createdBy], references: [id])
 }
+
 
 model InviteLink {
   id         String   @id @default(uuid())
