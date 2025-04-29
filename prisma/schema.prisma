@@ -12,11 +12,19 @@ model User {
   email            String       @unique
   password         String
   role             String
-  ownerId          String?
+  ownerId          String?      // null for admins; employees point to their admin’s id
+
+  // entries this user created
   entriesAsCreator Entry[]      @relation("creatorEntries")
+
+  // entries this user owns (as admin)
   entriesAsAdmin   Entry[]      @relation("adminEntries")
+
+  // invite links this admin created
   inviteLinks      InviteLink[] @relation("inviteLinks")
-  resetTokens      ResetToken[] @relation("resetTokens")
+
+  // password reset tokens for this user
+  resetTokens      ResetToken[] @relation("UserResetTokens")
 }
 
 model Entry {
@@ -26,6 +34,7 @@ model Entry {
   adminId    String
   createdBy  String
   createdAt  DateTime @default(now())
+
   admin      User     @relation("adminEntries", fields: [adminId], references: [id])
   creator    User     @relation("creatorEntries", fields: [createdBy], references: [id])
 }
@@ -35,6 +44,7 @@ model InviteLink {
   token      String   @unique
   adminId    String
   expiresAt  DateTime
+
   admin      User     @relation("inviteLinks", fields: [adminId], references: [id])
 }
 
@@ -43,5 +53,6 @@ model ResetToken {
   token      String   @unique
   userId     String
   expiresAt  DateTime
-  user       User     @relation(fields: [userId], references: [id])
+
+  user       User     @relation("UserResetTokens", fields: [userId], references: [id])
 }
