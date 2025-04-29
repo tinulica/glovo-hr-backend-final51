@@ -8,13 +8,20 @@ datasource db {
 }
 
 model User {
-  id               String   @id @default(uuid())
-  email            String   @unique
+  id               String       @id @default(uuid())
+  email            String       @unique
   password         String
   role             String
-  ownerId          String?  
-  entriesAsCreator Entry[]  @relation("creatorEntries")
-  entriesAsAdmin   Entry[]  @relation("adminEntries")
+  ownerId          String?      // null for admins; for employees, points to their admin’s id
+
+  // entries this user created (as employee or admin)
+  entriesAsCreator Entry[]      @relation("creatorEntries")
+
+  // entries this user owns (as an admin) 
+  entriesAsAdmin   Entry[]      @relation("adminEntries")
+
+  // invite links this admin created
+  inviteLinks      InviteLink[] @relation("inviteLinks")
 }
 
 model Entry {
@@ -34,5 +41,7 @@ model InviteLink {
   token      String   @unique
   adminId    String
   expiresAt  DateTime
-  admin      User     @relation(fields: [adminId], references: [id])
+
+  // relation back to the admin user
+  admin      User     @relation("inviteLinks", fields: [adminId], references: [id])
 }
