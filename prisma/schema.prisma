@@ -1,0 +1,38 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String   @id @default(uuid())
+  email            String   @unique
+  password         String
+  role             String
+  ownerId          String?  
+  entriesAsCreator Entry[]  @relation("creatorEntries")
+  entriesAsAdmin   Entry[]  @relation("adminEntries")
+}
+
+model Entry {
+  id         String   @id @default(uuid())
+  fullName   String
+  salary     Float
+  adminId    String
+  createdBy  String
+  createdAt  DateTime @default(now())
+
+  admin      User     @relation("adminEntries", fields: [adminId], references: [id])
+  creator    User     @relation("creatorEntries", fields: [createdBy], references: [id])
+}
+
+model InviteLink {
+  id         String   @id @default(uuid())
+  token      String   @unique
+  adminId    String
+  expiresAt  DateTime
+  admin      User     @relation(fields: [adminId], references: [id])
+}
