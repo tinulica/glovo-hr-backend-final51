@@ -26,7 +26,7 @@ model User {
   phone            String
   password         String
   role             String
-  ownerId          String?
+  ownerId          String?          // null for top-level admins
 
   collaborations   Collaboration[]
   entriesAsCreator Entry[]          @relation("creatorEntries")
@@ -92,7 +92,7 @@ model Document {
 
 model Entry {
   id               String   @id @default(uuid())
-  // existing Entry fields…
+  // ... your existing Entry fields ...
   adminId          String
   createdBy        String
   createdAt        DateTime @default(now())
@@ -101,5 +101,20 @@ model Entry {
   creator          User     @relation("creatorEntries", fields: [createdBy], references: [id])
 }
 
-model InviteLink { /* unchanged */ }
-model ResetToken { /* unchanged */ }
+model InviteLink {
+  id         String   @id @default(uuid())
+  token      String   @unique
+  adminId    String
+  expiresAt  DateTime
+
+  admin      User     @relation(fields: [adminId], references: [id])
+}
+
+model ResetToken {
+  id         String   @id @default(uuid())
+  token      String   @unique
+  userId     String
+  expiresAt  DateTime
+
+  user       User     @relation(fields: [userId], references: [id])
+}
