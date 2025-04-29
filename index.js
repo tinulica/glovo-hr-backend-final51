@@ -1,59 +1,58 @@
 // index.js
+
 require('dotenv').config();
 const express = require('express');
-const cors = require('cors');
+const cors    = require('cors');
 const { PrismaClient } = require('@prisma/client');
 
-const authRoutes         = require('./routes/auth');
-const inviteRoutes       = require('./routes/invite');
-const entryRoutes        = require('./routes/entries');
-const collabRoutes       = require('./routes/collaborations');
-const passwordRoutes     = require('./routes/password'); // if you have password reset
-const app                = express();
-const prisma             = new PrismaClient();
+const authRoutes   = require('./routes/auth');
+const inviteRoutes = require('./routes/invite');
+const entryRoutes  = require('./routes/entries');
 
-// CORS configuration
+const app = express();
+const prisma = new PrismaClient();
+
+// --- CORS Setup ---
+// For production: whitelist only your origins
 const allowedOrigins = [
-  process.env.FRONTEND_URL,    // e.g. https://glovo-hr-frontend-final4.vercel.app
-  'http://localhost:3000',     // local React dev
+  'http://localhost:3000',                             // React dev
+  'https://glovo-hr-frontend-final4.vercel.app'        // Vercel frontend
 ];
-const corsOptions = {
+
+app.use(cors({
   origin(origin, callback) {
-    // allow requests with no origin (e.g. mobile apps or curl)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) return callback(null, true);
-    callback(new Error('CORS not allowed for ' + origin));
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS not allowed for ${origin}`));
+    }
   },
-  methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
-  allowedHeaders: ['Content-Type','Authorization'],
-};
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));  // enable pre-flight
+  methods: ['GET','POST','PUT','DELETE','OPTIONS'],
+  credentials: true
+}));
 
 app.use(express.json());
 
-// Health check
+// --- Health Check ---
 app.get('/', (req, res) => {
   res.send('Glovo HR Backend is running');
 });
 
-// Routes
-app.use('/auth', authRoutes);
+// --- Mount Routes ---
+app.use('/auth',   authRoutes);
 app.use('/invite', inviteRoutes);
-app.use('/entries', entryRoutes);
-app.use('/collaborations', collabRoutes);
-app.use('/password', passwordRoutes);
+app.use('/entries',entryRoutes);
 
-// Global error handler
+// --- Global Error Handler ---
 app.use((err, req, res, next) => {
-  console.error(err);
-  if (err.message && err.message.startsWith('CORS')) {
-    return res.status(401).json({ message: err.message });
+  console.error(err.message);
+  if (err.message.startsWith('CORS')) {
+    return res.status(403).json({ message: err.message });
   }
   res.status(500).json({ message: 'Server Error' });
 });
 
-// Start server
+// --- Start Server ---
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
