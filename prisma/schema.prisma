@@ -7,46 +7,99 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum CollaborationType {
+  ANGAJARE
+  PFA_SRL
+  DETASARE
+}
+
+enum Platforma {
+  GLOVO
+  BRINGO
+  TAZZ
+}
+
 model User {
-  id               String       @id @default(uuid())
-  email            String       @unique
+  id               String           @id @default(uuid())
+  nume             String
+  email            String           @unique
+  phone            String
   password         String
   role             String
-  ownerId          String?      // null for top-level admins
+  ownerId          String?
 
-  entriesAsCreator Entry[]      @relation("creatorEntries")
-  entriesAsAdmin   Entry[]      @relation("adminEntries")
-  inviteLinks      InviteLink[] @relation("inviteLinks")
-  resetTokens      ResetToken[] @relation("UserResetTokens")
+  collaborations   Collaboration[]
+  entriesAsCreator Entry[]          @relation("creatorEntries")
+  entriesAsAdmin   Entry[]          @relation("adminEntries")
+  inviteLinks      InviteLink[]
+  resetTokens      ResetToken[]
+}
+
+model Collaboration {
+  id               String            @id @default(uuid())
+  user             User              @relation(fields: [userId], references: [id])
+  userId           String
+
+  type             CollaborationType
+  platforma        Platforma?
+  comision         Float?
+  oras             String?
+  mijloc           String?
+
+  // Angajare-specific
+  cnp              String?
+  serieBuletin     String?
+  adresa           String?
+  iban             String?
+  startDate        DateTime?
+  contractNr       String?
+  norma            String?
+
+  // PFA/SRL-specific
+  platitorTVA      Boolean?
+  cui              String?
+  jReg             String?
+  sediuSocial      String?
+
+  // Detașare
+  detasatLa        Company?         @relation(fields: [detasatLaId], references: [id])
+  detasatLaId      String?
+
+  documents        Document[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+}
+
+model Company {
+  id               String            @id @default(uuid())
+  nume             String
+  type             CollaborationType
+  active           Boolean           @default(true)
+
+  collaborations   Collaboration[]
+}
+
+model Document {
+  id               String            @id @default(uuid())
+  collaboration    Collaboration     @relation(fields: [collaborationId], references: [id])
+  collaborationId  String
+
+  name             String
+  url              String
+  category         String
+  uploadedAt       DateTime          @default(now())
 }
 
 model Entry {
-  id         String   @id @default(uuid())
-  nume       String
-  phone      String
-  email      String
-  adminId    String
-  createdBy  String
-  createdAt  DateTime @default(now())
+  id               String   @id @default(uuid())
+  // existing Entry fields…
+  adminId          String
+  createdBy        String
+  createdAt        DateTime @default(now())
 
-  admin   User @relation("adminEntries", fields: [adminId], references: [id])
-  creator User @relation("creatorEntries", fields: [createdBy], references: [id])
+  admin            User     @relation("adminEntries", fields: [adminId], references: [id])
+  creator          User     @relation("creatorEntries", fields: [createdBy], references: [id])
 }
 
-model InviteLink {
-  id         String   @id @default(uuid())
-  token      String   @unique
-  adminId    String
-  expiresAt  DateTime
-
-  admin User @relation("inviteLinks", fields: [adminId], references: [id])
-}
-
-model ResetToken {
-  id         String   @id @default(uuid())
-  token      String   @unique
-  userId     String
-  expiresAt  DateTime
-
-  user User @relation("UserResetTokens", fields: [userId], references: [id])
-}
+model InviteLink { /* unchanged */ }
+model ResetToken { /* unchanged */ }
