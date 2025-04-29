@@ -12,28 +12,42 @@ model User {
   email            String       @unique
   password         String
   role             String
-  ownerId          String?      // null for admins; employees point to their admin’s id
-
-  // entries this user created
+  ownerId          String?
   entriesAsCreator Entry[]      @relation("creatorEntries")
-
-  // entries this user owns (as admin)
   entriesAsAdmin   Entry[]      @relation("adminEntries")
-
-  // invite links this admin created
   inviteLinks      InviteLink[] @relation("inviteLinks")
-
-  // password reset tokens for this user
   resetTokens      ResetToken[] @relation("UserResetTokens")
 }
 
 model Entry {
-  id         String   @id @default(uuid())
-  fullName   String
-  salary     Float
-  adminId    String
-  createdBy  String
-  createdAt  DateTime @default(now())
+  id                         String   @id @default(uuid())
+  numeCompanie               String
+  idCurier                   String
+  oras                       String
+  nume                       String
+  email                      String
+  contActiv                  Boolean
+  balantaCashActuala         Float
+  garantate                  Float
+  comenzi                    Int
+  stornoTaxaLivrare          Float
+  bonusRecomandare           Float
+  bonusNumarComenzi          Float
+  bonusColantare             Float
+  alteBonusuri               Float
+  recalculariVenituriAnterioare Float
+  venituri                   Float
+  taxaLivrare                Float
+  plataZilnicaCash           Float
+  ajustariPerioadaAnterioara Float
+  tips                       Float
+  taxaDeschidereCont         Float
+  taxaAplicatie              Float
+  ajustariTotale             Float
+  totalVenituriDeTransferat  Float
+  adminId                    String
+  createdBy                  String
+  createdAt                  DateTime @default(now())
 
   admin      User     @relation("adminEntries", fields: [adminId], references: [id])
   creator    User     @relation("creatorEntries", fields: [createdBy], references: [id])
@@ -44,7 +58,6 @@ model InviteLink {
   token      String   @unique
   adminId    String
   expiresAt  DateTime
-
   admin      User     @relation("inviteLinks", fields: [adminId], references: [id])
 }
 
@@ -53,6 +66,5 @@ model ResetToken {
   token      String   @unique
   userId     String
   expiresAt  DateTime
-
   user       User     @relation("UserResetTokens", fields: [userId], references: [id])
 }
