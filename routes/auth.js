@@ -8,10 +8,10 @@ const router = express.Router();
 
 /**
  * POST /auth/register
- * - Creates a new User
- * - Auto-creates an Organization owned by that User
- * - Tethers the User to their Organization
- * - Returns { user, token }
+ * - Creates a new user
+ * - Creates a new Organization owned by that user
+ * - Updates the user to belong to that org
+ * - Returns { user: { id,email,fullName,organizationId }, token }
  */
 router.post("/register", async (req, res) => {
   try {
@@ -26,7 +26,7 @@ router.post("/register", async (req, res) => {
     // 2) Hash password
     const hashed = await bcrypt.hash(password, 10);
 
-    // 3) Create the user (no org yet)
+    // 3) Create the user (no orgId yet)
     const user = await prisma.user.create({
       data: { email, password: hashed, fullName },
       select: { id: true, email: true, fullName: true },
@@ -46,14 +46,14 @@ router.post("/register", async (req, res) => {
       data: { organizationId: organization.id },
     });
 
-    // 6) Issue JWT (auth middleware will re-fetch orgId)
+    // 6) Issue JWT (payload.id + payload.email)
     const token = jwt.sign(
       { id: user.id, email: user.email },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
 
-    res.status(201).json({
+    return res.status(201).json({
       user: {
         id: user.id,
         email: user.email,
@@ -64,31 +64,31 @@ router.post("/register", async (req, res) => {
     });
   } catch (err) {
     console.error("Register error:", err);
-    res.status(500).json({ message: "Registration failed" });
+    return res.status(500).json({ message: "Registration failed" });
   }
 });
 
 /**
  * POST /auth/login
- * - Verifies credentials
- * - Returns { user, token }
+ * - Verifies email/password
+ * - Returns { user: { id,email,fullName,organizationId }, token }
  */
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // 1) Look up user by email
+    // 1) Find the user by email
     const user = await prisma.user.findUnique({
       where: { email },
-      select: { id: true, email: true, fullName: true, password: true, organizationId: true },
+      select: { id: true, email: true, password: true, fullName: true, organizationId: true },
     });
     if (!user) {
-      return res.status(400).json({ message: "Invalid credentials" });
+      return res.status(400).json({ message: "User not found" });
     }
 
-    // 2) Check password
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) {
+    // 2) Verify password
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
@@ -99,8 +99,8 @@ router.post("/login", async (req, res) => {
       { expiresIn: "7d" }
     );
 
-    // 4) Return user + orgId (omit password)
-    res.json({
+    // 4) Send back the user (minus password) + token
+    return res.json({
       user: {
         id: user.id,
         email: user.email,
@@ -111,7 +111,7 @@ router.post("/login", async (req, res) => {
     });
   } catch (err) {
     console.error("Login error:", err);
-    res.status(500).json({ message: "Login failed" });
+    return res.status(500).json({ message: "Login failed" });
   }
 });
 
