@@ -48,8 +48,8 @@ model User {
 model ImportSession {
   id        String  @id @default(uuid())
   platform  String
-  fileId    String?
-  file      File?   @relation(fields: [fileId], references: [id])
+fileId    String? @unique
+file      File?   @relation(fields: [fileId], references: [id])
   entries   Entry[]
   createdAt DateTime @default(now())
 }
