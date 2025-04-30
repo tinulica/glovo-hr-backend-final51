@@ -1,37 +1,41 @@
-// routes/auth/login.ts
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { prisma } from '../../lib/prisma';
-import { JWT_SECRET } from '../../config';
+import prisma from '../lib/prisma.js';
 
 const router = express.Router();
 
 router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
-
   try {
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user || !user.password) {
-      return res.status(400).json({ error: 'Invalid email or password' });
-    }
+    const { email, password } = req.body;
 
-    const valid = await bcrypt.compare(password, user.password);
-    if (!valid) {
-      return res.status(400).json({ error: 'Invalid email or password' });
-    }
+    // Find user by email
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: { organization: true },
+    });
 
-    const token = jwt.sign({
-      userId: user.id,
-      email: user.email,
-      organizationId: user.organizationId,
-      role: user.role,
-    }, JWT_SECRET, { expiresIn: '7d' });
+    if (!user) return res.status(400).json({ message: 'User not found' });
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(401).json({ message: 'Invalid credentials' });
+
+    // Sign JWT with user and organization scope
+    const token = jwt.sign(
+      {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        orgId: user.organizationId,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
 
     res.json({ token });
-  } catch (err) {
-    console.error('Login error:', err);
-    res.status(500).json({ error: 'Login failed' });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ message: 'Login failed' });
   }
 });
 
