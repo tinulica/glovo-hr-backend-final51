@@ -1,97 +1,39 @@
 import express from 'express';
-import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
+import prisma from '../lib/prisma.js';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
-// POST /auth/register
 router.post('/register', async (req, res) => {
-  const { email, password } = req.body;
   try {
-    const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing) return res.status(400).json({ error: 'User already exists' });
+    const { email, password, fullName } = req.body;
 
-    const hashed = await bcrypt.hash(password, 10);
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      return res.status(409).json({ message: 'User already exists' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
     const user = await prisma.user.create({
-      data: { email, password: hashed },
-    });
-
-    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    res.status(201).json({ token, user });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Registration failed' });
-  }
-});
-
-// POST /auth/login
-router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
-  try {
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) return res.status(401).json({ error: 'Invalid credentials' });
-
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) return res.status(401).json({ error: 'Invalid credentials' });
-
-    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Login failed' });
-  }
-});
-
-// POST /auth/forgot-password
-router.post('/forgot-password', async (req, res) => {
-  const { email } = req.body;
-  try {
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) return res.status(404).json({ error: 'User not found' });
-
-    const token = crypto.randomBytes(32).toString('hex');
-    const expires = new Date(Date.now() + 1000 * 60 * 60); // 1 hour
-
-    await prisma.resetToken.create({
       data: {
-        token,
-        userId: user.id,
-        expiresAt: expires,
+        email,
+        password: hashedPassword,
+        fullName,
       },
     });
 
-    // TODO: Send token via email
-    res.json({ message: 'Reset token generated', token });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to generate reset token' });
-  }
-});
+    const token = jwt.sign(
+      { id: user.id, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
 
-// POST /auth/reset-password
-router.post('/reset-password', async (req, res) => {
-  const { token, password } = req.body;
-  try {
-    const reset = await prisma.resetToken.findUnique({ where: { token }, include: { user: true } });
-    if (!reset || reset.expiresAt < new Date()) {
-      return res.status(400).json({ error: 'Token invalid or expired' });
-    }
-
-    const hashed = await bcrypt.hash(password, 10);
-    await prisma.user.update({
-      where: { id: reset.userId },
-      data: { password: hashed },
-    });
-
-    await prisma.resetToken.delete({ where: { id: reset.id } });
-
-    res.json({ message: 'Password reset successful' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Password reset failed' });
+    res.status(201).json({ user, token });
+  } catch (error) {
+    console.error('Register error:', error);
+    res.status(500).json({ message: 'Registration failed' });
   }
 });
 
