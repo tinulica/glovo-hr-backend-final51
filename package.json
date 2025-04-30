@@ -1,22 +1,21 @@
 {
   "name": "glovo-hr-backend",
   "version": "1.0.0",
-  "description": "Backend for Glovo HR Manager with Prisma, Express, and XLSX import/export",
-  "main": "index.js",
+  "description": "Backend for Glovo HR Manager",
+  "main": "src/index.js",
   "type": "module",
   "scripts": {
-    "dev": "node index.js",
-    "start": "node index.js",
-    "build": "npx prisma generate && npx prisma db push"
+    "dev": "nodemon src/index.js",
+    "start": "node src/index.js",
+    "build": "echo 'No build step needed'",
+    "prisma:generate": "npx prisma generate",
+    "prisma:push": "npx prisma db push"
   },
-  "keywords": [],
-  "author": "tinulica",
-  "license": "MIT",
   "dependencies": {
     "@prisma/client": "^5.22.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
-    "express": "^4.18.2",
+    "express": "^4.18.4",
     "multer": "^1.4.5-lts.1",
     "xlsx": "^0.18.5"
   },
