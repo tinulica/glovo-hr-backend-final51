@@ -1,13 +1,17 @@
-// routes/password.js
-import express from "express";
-import { forgotPassword, resetPassword } from "../controllers/passwordController.js";
-
+// src/routes/password.js
+import express from 'express';
 const router = express.Router();
 
-// POST /password/forgot
-router.post("/forgot", forgotPassword);
+// Forgot password route
+router.post('/forgot', async (req, res) => {
+  const { email } = req.body;
 
-// POST /password/reset/:token
-router.post("/reset/:token", resetPassword);
+  // Add your logic to send email
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required' });
+  }
+
+  return res.json({ message: 'Password reset link sent to email (mock)' });
+});
 
 export default router;
