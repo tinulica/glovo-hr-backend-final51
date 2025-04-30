@@ -8,7 +8,6 @@ import reportRoutes from "./routes/report.js";
 import salaryRoutes from "./routes/salary.js";
 import userRoutes from "./routes/users.js";
 import importRoutes from "./routes/import.js";
-import importRoutes from './routes/import.js';
 
 dotenv.config();
 
@@ -35,7 +34,6 @@ app.use("/report", reportRoutes);
 app.use("/salary", salaryRoutes);
 app.use("/users", userRoutes);
 app.use("/import", importRoutes);
-app.use('/import', importRoutes);
 
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
