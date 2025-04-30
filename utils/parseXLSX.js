@@ -1,10 +1,12 @@
-// src/utils/parseXLSX.js
-import XLSX from 'xlsx';
+// utils/parseXLSX.js
+import xlsx from 'xlsx';
 
-export function parseXLSX(fileBuffer) {
-  const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
+const parseXLSX = (buffer) => {
+  const workbook = xlsx.read(buffer, { type: 'buffer' });
   const sheetName = workbook.SheetNames[0];
   const sheet = workbook.Sheets[sheetName];
-  const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-  return rows;
-}
+  const data = xlsx.utils.sheet_to_json(sheet);
+  return data;
+};
+
+export default parseXLSX;
