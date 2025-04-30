@@ -10,31 +10,58 @@ generator client {
 }
 
 model User {
+  id                  String            @id @default(uuid())
+  email               String            @unique
+  password            String
+  fullName            String?
+
+  // Membership in exactly one org:
+  organizationId      String
+  organization        Organization      @relation("OrgMembers", fields: [organizationId], references: [id])
+
+  // If this user owns an org:
+  organizationsOwned  Organization[]    @relation("OrgOwner")
+
+  entries             Entry[]
+  importSessions      ImportSession[]
+
+  // Invitations they sent or received:
+  invitationsSent     Invitation[]      @relation("Inviter")
+  invitationsReceived Invitation[]      @relation("Invitee")
+}
+
+model Organization {
   id             String           @id @default(uuid())
-  email          String           @unique
-  password       String
-  fullName       String?
-  organizationId String
-  organization   Organization     @relation(fields: [organizationId], references: [id])
+  name           String
+
+  // Who created/owns this org:
+  ownerId        String           @unique
+  owner          User             @relation("OrgOwner", fields: [ownerId], references: [id])
+
+  // All members of this org:
+  members        User[]           @relation("OrgMembers")
+
+  invitations    Invitation[]
   entries        Entry[]
   importSessions ImportSession[]
 }
 
-model Organization {
-  id      String  @id @default(uuid())
-  name    String
-  ownerId String  @unique
-  owner   User    @relation("OrgOwner", fields: [ownerId], references: [id])
-  members User[]  @relation("OrgMembers")
-}
-
 model Invitation {
-  id             String       @id @default(uuid())
-  token          String       @unique
+  id             String        @id @default(uuid())
+  token          String        @unique
+
+  // Which org this invite is for:
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  organization   Organization  @relation(fields: [organizationId], references: [id])
+
+  // Who sent it / who (optionally) accepted it:
+  inviterId      String
+  inviter        User          @relation("Inviter", fields: [inviterId], references: [id])
+  inviteeId      String?
+  invitee        User?         @relation("Invitee", fields: [inviteeId], references: [id])
+
   invitedEmail   String
-  createdAt      DateTime     @default(now())
+  createdAt      DateTime      @default(now())
 }
 
 model Entry {
@@ -47,17 +74,22 @@ model Entry {
   iban           String?
   bankName       String?
   beneficiary    String?
+
+  // Who added it:
   createdById    String
   createdBy      User             @relation(fields: [createdById], references: [id])
+
+  // Which org it belongs to:
   organizationId String
   organization   Organization     @relation(fields: [organizationId], references: [id])
+
   salaryHistories SalaryHistory[]
 }
 
 model SalaryHistory {
-  id       String  @id @default(uuid())
+  id       String   @id @default(uuid())
   entryId  String
-  entry    Entry   @relation(fields: [entryId], references: [id])
+  entry    Entry    @relation(fields: [entryId], references: [id])
   amount   Float
   date     DateTime
   hours    Int
@@ -67,10 +99,15 @@ model SalaryHistory {
 model ImportSession {
   id             String       @id @default(uuid())
   platform       String
+
+  // Which org created it:
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
+
+  // Who ran the import:
   createdById    String
   createdBy      User         @relation(fields: [createdById], references: [id])
+
   fileName       String
   createdAt      DateTime     @default(now())
 }
