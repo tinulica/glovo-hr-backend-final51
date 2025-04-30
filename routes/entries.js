@@ -16,9 +16,24 @@ import multer from "multer";
 const upload = multer({ dest: "uploads/" });
 const router = express.Router();
 
-// ✅ Scoped GET /entries route
+// All routes use authMiddleware to extract user + orgId
+
 router.get("/entries", authMiddleware, listEntries);
 
-// ... other routes unchanged
+router.post("/entries", authMiddleware, addEntryManually);
+
+router.put("/entries/:id", authMiddleware, updateEntry);
+
+router.delete("/entries/:id", authMiddleware, deleteEntry);
+
+router.post("/entries/import", authMiddleware, upload.single("file"), importEntries);
+
+router.post("/entries/export", authMiddleware, exportEntries);
+
+router.get("/entries/salary-history/:id", authMiddleware, getSalaryHistory);
+
+router.get("/entries/export/:id", authMiddleware, exportSalaryById);
+
+router.get("/entries/email/:id", authMiddleware, emailSalaryById);
 
 export default router;
