@@ -1,63 +1,104 @@
-// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-generator client {
-  provider = "prisma-client-js"
+model Organization {
+  id             String           @id @default(uuid())
+  name           String
+  ownerId        String           @unique
+  owner          User             @relation(fields: [ownerId], references: [id])
+  members        User[]           @relation("OrgMembers")
+  entries        Entry[]
+  invitations    Invitation[]
+  importSessions ImportSession[]
+  createdAt      DateTime         @default(now())
+}
+
+model User {
+  id              String         @id @default(uuid())
+  email           String         @unique
+  password        String
+  fullName        String?
+  organizationId  String
+  organization    Organization   @relation(fields: [organizationId], references: [id], name: "OrgMembers")
+  entries         Entry[]
+  resetTokens     ResetToken[]
+  invitationsSent Invitation[]    @relation("Inviter")
+  invitations     Invitation[]    @relation("Invitee")
+  createdAt       DateTime       @default(now())
+}
+
+model Invitation {
+  id             String         @id @default(uuid())
+  email          String
+  token          String         @unique
+  inviterId      String
+  inviteeId      String?
+  organizationId String
+  accepted       Boolean        @default(false)
+  expiresAt      DateTime
+  createdAt      DateTime       @default(now())
+
+  inviter        User           @relation("Inviter", fields: [inviterId], references: [id])
+  invitee        User?          @relation("Invitee", fields: [inviteeId], references: [id])
+  organization   Organization   @relation(fields: [organizationId], references: [id])
 }
 
 model Entry {
-  id               String          @id @default(uuid())
-  fullName         String
-  email            String
-  platform         String
-  externalId       String?
-  companyName      String?
-  iban             String?
-  bankName         String?
-  beneficiary      String?
-  userId           String?
-  user             User?           @relation(fields: [userId], references: [id])
-  salaryHistories  SalaryHistory[]
-  importSessionId  String?
-  importSession    ImportSession?  @relation(fields: [importSessionId], references: [id])
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  id              String           @id @default(uuid())
+  organizationId  String
+  organization    Organization     @relation(fields: [organizationId], references: [id])
+  createdById     String
+  createdBy       User             @relation(fields: [createdById], references: [id])
+  fullName        String
+  email           String
+  platform        String
+  salaryHistories SalaryHistory[]
+  importSessionId String?
+  importSession   ImportSession?   @relation(fields: [importSessionId], references: [id])
+  createdAt       DateTime         @default(now())
 }
 
 model SalaryHistory {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   entryId   String
-  entry     Entry    @relation(fields: [entryId], references: [id])
+  entry     Entry     @relation(fields: [entryId], references: [id])
   date      DateTime
   amount    Float
   hours     Int
   net       Float
-  createdAt DateTime @default(now())
-}
-
-model User {
-  id      String  @id @default(uuid())
-  email   String  @unique
-  entries Entry[]
+  createdAt DateTime  @default(now())
 }
 
 model ImportSession {
-  id        String  @id @default(uuid())
-  platform  String
-fileId    String? @unique
-file      File?   @relation(fields: [fileId], references: [id])
-  entries   Entry[]
-  createdAt DateTime @default(now())
+  id               String         @id @default(uuid())
+  organizationId   String
+  organization     Organization   @relation(fields: [organizationId], references: [id])
+  platform         String
+  fileId           String
+  file             File           @relation(fields: [fileId], references: [id])
+  entries          Entry[]
+  createdAt        DateTime       @default(now())
 }
 
 model File {
-  id        String  @id @default(uuid())
-  name      String
-  url       String
-  session   ImportSession?
-  createdAt DateTime @default(now())
+  id         String          @id @default(uuid())
+  name       String
+  url        String
+  uploadedAt DateTime        @default(now())
+  sessions   ImportSession[]
+}
+
+model ResetToken {
+  id        String      @id @default(uuid())
+  token     String      @unique
+  userId    String
+  user      User        @relation(fields: [userId], references: [id])
+  expiresAt DateTime
+  createdAt DateTime    @default(now())
 }
