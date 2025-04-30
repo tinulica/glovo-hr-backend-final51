@@ -8,29 +8,29 @@ datasource db {
 }
 
 model Organization {
-  id             String           @id @default(uuid())
-  name           String
-  ownerId        String           @unique
-  owner          User             @relation(fields: [ownerId], references: [id])
-  members        User[]           @relation("OrgMembers")
-  entries        Entry[]
-  invitations    Invitation[]
-  importSessions ImportSession[]
-  createdAt      DateTime         @default(now())
+  id        String        @id @default(uuid())
+  name      String
+  ownerId   String        @unique
+  owner     User          @relation("OrganizationOwner", fields: [ownerId], references: [id])
+  members   User[]        @relation("OrgMembers")
+  createdAt DateTime      @default(now())
+  // …if you need an importSession, etc…
 }
 
 model User {
-  id              String         @id @default(uuid())
-  email           String         @unique
-  password        String
-  fullName        String?
-  organizationId  String
-  organization    Organization   @relation(fields: [organizationId], references: [id], name: "OrgMembers")
-  entries         Entry[]
-  resetTokens     ResetToken[]
-  invitationsSent Invitation[]    @relation("Inviter")
-  invitations     Invitation[]    @relation("Invitee")
-  createdAt       DateTime       @default(now())
+  id                   String         @id @default(uuid())
+  email                String         @unique
+  password             String
+  fullName             String?
+  // ————————————————————————————————————————————
+  // the Organization you own (one-to-one)
+  organizationOwned    Organization?  @relation("OrganizationOwner")
+  // the Organizations you’re a member of (many-to-many)
+  organizations        Organization[] @relation("OrgMembers")
+  // ————————————————————————————————————————————
+  entries              Entry[]        // your existing entries relation
+  resetTokens          ResetToken[]
+  // …any other fields…
 }
 
 model Invitation {
