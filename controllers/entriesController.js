@@ -1,7 +1,7 @@
 // controllers/entriesController.js
 import prisma from "../lib/prisma.js";
 import parseXLSX from "../utils/parseXLSX.js";
-import { generateExcel } from '../utils/generateExcel.js';
+import generateExcel from '../utils/generateExcel.js';
 import gmailMailer from "../utils/gmailMailer.js";
 import fs from "fs";
 import path from "path";
