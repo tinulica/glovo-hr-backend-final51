@@ -1,3 +1,6 @@
+// schema.prisma
+// Prisma schema with Organization, User, Entry models
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,124 +11,86 @@ datasource db {
 }
 
 model User {
-  id                   String           @id @default(uuid())
-  email                String           @unique
-  password             String
-  fullName             String?
-  createdAt            DateTime         @default(now())
-
-  // Ownership
-  organizationOwned    Organization?    @relation("OrganizationOwner")
-  organizations        Organization[]   @relation("OrgMembers")
-
-  // Invitations
-  invitationsSent      Invitation[]     @relation("Inviter")
-  invitationsReceived  Invitation[]     @relation("Invitee")
-
-  // Entries & imports
-  entries              Entry[]
-  importSessions       ImportSession[]
-
-  // Password reset
-  resetTokens          ResetToken[]
+  id             String        @id @default(cuid())
+  email          String        @unique
+  password       String
+  role           Role
+  organization   Organization  @relation(fields: [organizationId], references: [id])
+  organizationId String
+  entries        Entry[]       @relation("CreatedEntries")
+  createdAt      DateTime      @default(now())
 }
 
 model Organization {
-  id             String           @id @default(uuid())
-  name           String
-  ownerId        String           @unique
-  owner          User             @relation("OrganizationOwner", fields: [ownerId], references: [id])
-  members        User[]           @relation("OrgMembers")
-
-  // ← Add this:
-  entries        Entry[]
-
-  // Keep these too
-  invitations    Invitation[]
-  importSessions ImportSession[]
-
-  createdAt      DateTime         @default(now())
-}
-
-model Invitation {
-  id             String         @id @default(uuid())
-  inviterId      String
-  inviter        User           @relation("Inviter", fields: [inviterId], references: [id])
-  inviteeId      String?
-  invitee        User?          @relation("Invitee", fields: [inviteeId], references: [id])
-  organizationId String
-  organization   Organization   @relation(fields: [organizationId], references: [id])
-  token          String         @unique
-  status         String
-  createdAt      DateTime       @default(now())
+  id        String   @id @default(cuid())
+  name      String
+  users     User[]
+  entries   Entry[]
+  createdAt DateTime @default(now())
 }
 
 model Entry {
-  id             String           @id @default(uuid())
-  externalId     String?
-  fullName       String
-  email          String
-  platform       String
-  companyName    String?
-  iban           String?
-  bankName       String?
-  beneficiary    String?
-
-  // Multi-tenant relation
-  organizationId String
-  organization   Organization     @relation(fields: [organizationId], references: [id])
-
-  // Who created this
+  id             String        @id @default(cuid())
+  name           String
+  amount         Float
+  date           DateTime
+  createdBy      User          @relation("CreatedEntries", fields: [createdById], references: [id])
   createdById    String
-  createdBy      User             @relation(fields: [createdById], references: [id])
-
-  importSessionId String?
-  importSession   ImportSession?  @relation(fields: [importSessionId], references: [id])
-
-  salaryHistories SalaryHistory[]
-  createdAt       DateTime         @default(now())
-}
-
-model SalaryHistory {
-  id        String   @id @default(uuid())
-  entryId   String
-  entry     Entry    @relation(fields: [entryId], references: [id])
-  date      DateTime
-  amount    Float
-  hours     Int
-  net       Float
-  createdAt DateTime @default(now())
-}
-
-model ImportSession {
-  id             String         @id @default(uuid())
+  organization   Organization  @relation(fields: [organizationId], references: [id])
   organizationId String
-  organization   Organization   @relation(fields: [organizationId], references: [id])
-
-  createdById    String
-  createdBy      User           @relation(fields: [createdById], references: [id])
-
-  platform       String
-  fileId         String
-  file           File           @relation(fields: [fileId], references: [id])
-  entries        Entry[]
-
-  createdAt      DateTime       @default(now())
+  createdAt      DateTime      @default(now())
 }
 
-model File {
-  id         String           @id @default(uuid())
-  name       String
-  url        String
-  uploadedAt DateTime         @default(now())
-  sessions   ImportSession[]
+enum Role {
+  ADMIN
+  USER
 }
 
-model ResetToken {
-  id        String   @id @default(uuid())
-  token     String   @unique
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-}
+
+// routes/auth/register.ts
+import express from 'express';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { prisma } from '../../lib/prisma';
+import { JWT_SECRET } from '../../config';
+
+const router = express.Router();
+
+router.post('/register', async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      return res.status(400).json({ error: 'User already exists' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const organization = await prisma.organization.create({
+      data: { name: `${email}'s Organization` },
+    });
+
+    const user = await prisma.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+        role: 'ADMIN',
+        organizationId: organization.id,
+      },
+    });
+
+    const token = jwt.sign({
+      userId: user.id,
+      email: user.email,
+      organizationId: user.organizationId,
+      role: user.role,
+    }, JWT_SECRET, { expiresIn: '7d' });
+
+    res.json({ token });
+  } catch (err) {
+    console.error('Register error:', err);
+    res.status(500).json({ error: 'Registration failed' });
+  }
+});
+
+export default router;
