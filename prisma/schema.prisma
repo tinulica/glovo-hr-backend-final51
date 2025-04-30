@@ -9,43 +9,36 @@ generator client {
   provider = "prisma-client-js"
 }
 
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
 model User {
-  id                  String            @id @default(uuid())
-  email               String            @unique
-  password            String
-  fullName            String?
-
-  // Membership in exactly one org:
-  organizationId      String
-  organization        Organization      @relation("OrgMembers", fields: [organizationId], references: [id])
-
-  // If this user owns an org:
-  organizationsOwned  Organization[]    @relation("OrgOwner")
-
-  entries             Entry[]
-  importSessions      ImportSession[]
-
-  // Invitations they sent or received:
-  invitationsSent     Invitation[]      @relation("Inviter")
-  invitationsReceived Invitation[]      @relation("Invitee")
+  id               String          @id @default(uuid())
+  email            String          @unique
+  password         String
+  fullName         String?
+  // Made optional so we can create the user first
+  organizationId   String?         
+  // membership side
+  organization     Organization?   @relation("OrgMembers", fields: [organizationId], references: [id])
+  // owner side
+  organizationsOwned Organization[] @relation("OrgOwner")
+  entries          Entry[]
+  // ... reset tokens, invites, etc.
 }
 
 model Organization {
-  id             String           @id @default(uuid())
-  name           String
-
-  // Who created/owns this org:
-  ownerId        String           @unique
-  owner          User             @relation("OrgOwner", fields: [ownerId], references: [id])
-
-  // All members of this org:
-  members        User[]           @relation("OrgMembers")
-
-  invitations    Invitation[]
-  entries        Entry[]
-  importSessions ImportSession[]
+  id        String   @id @default(uuid())
+  name      String
+  // exactly one owner
+  ownerId   String   @unique
+  owner     User     @relation("OrgOwner", fields: [ownerId], references: [id])
+  // all members (including owner)
+  members   User[]   @relation("OrgMembers")
+  // ... importSessions, invites, etc.
 }
-
 model Invitation {
   id             String        @id @default(uuid())
   token          String        @unique
