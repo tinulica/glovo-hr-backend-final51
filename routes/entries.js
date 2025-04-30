@@ -1,4 +1,5 @@
 // src/routes/entries.js
+
 import express from 'express';
 import auth from '../middleware/auth.js';
 import upload from '../middleware/upload.js';
