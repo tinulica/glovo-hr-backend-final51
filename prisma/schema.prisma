@@ -1,3 +1,5 @@
+// prisma/schema.prisma
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,32 +9,63 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Company {
+  GLOVO
+  TAZZ
+  BRINGO
+}
+
 model User {
-  id        String   @id @default(uuid())
+  id        String   @id @default(cuid())
   email     String   @unique
   password  String
+  role      String   @default("employee")
   entries   Entry[]
   createdAt DateTime @default(now())
 }
 
 model Entry {
-  id         String         @id @default(uuid())
+  id         String          @id @default(cuid())
+  userId     String
+  user       User            @relation(fields: [userId], references: [id])
   fullName   String
   email      String
-  platform   String
-  userId     String
-  user       User           @relation(fields: [userId], references: [id])
-  salaries   SalaryHistory[]
-  documents  Json?
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime       @updatedAt
+  platform   Company
+  date       DateTime
+  salary     Float
+  hours      Int
+  net        Float
+  histories  SalaryHistory[]
+  file       File?           @relation(fields: [fileId], references: [id])
+  fileId     String?
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
 }
 
 model SalaryHistory {
-  id        String   @id @default(uuid())
-  entryId   String
-  entry     Entry    @relation(fields: [entryId], references: [id])
-  amount    Float
-  month     String
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  entryId    String
+  entry      Entry    @relation(fields: [entryId], references: [id])
+  oldSalary  Float
+  oldHours   Int
+  oldNet     Float
+  date       DateTime
+  updatedAt  DateTime @default(now())
+  importFile String?
+}
+
+model File {
+  id         String   @id @default(cuid())
+  name       String
+  path       String
+  createdAt  DateTime @default(now())
+  entry      Entry?
+}
+
+model ImportSession {
+  id         String   @id @default(cuid())
+  company    Company
+  fileId     String
+  file       File     @relation(fields: [fileId], references: [id])
+  createdAt  DateTime @default(now())
 }
