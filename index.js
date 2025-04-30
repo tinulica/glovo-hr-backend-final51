@@ -2,7 +2,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-
+import entriesRoutes from './routes/entries.js';
 import authRoutes from './routes/auth.js';
 import passwordRoutes from './routes/password.js';
 import importRoutes from './routes/import.js';
@@ -23,6 +23,7 @@ app.use('/password', passwordRoutes);   // /password/forgot, /password/reset
 app.use('/import', importRoutes);       // Excel import logic
 app.use('/uploads', uploadsRoutes);     // File upload routes
 app.use('/dashboard', dashboardRoutes); // Admin dashboard data
+app.use('/entries', entriesRoutes);
 
 // Health check
 app.get('/', (req, res) => {
