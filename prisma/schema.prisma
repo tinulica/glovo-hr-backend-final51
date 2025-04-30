@@ -7,63 +7,61 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Company {
-  GLOVO
-  TAZZ
-  BRINGO
-}
-
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  createdAt DateTime @default(now())
+  id             String           @id @default(uuid())
+  email          String           @unique
+  password       String
+  createdAt      DateTime         @default(now())
+  entries        Entry[]
+  resetTokens    ResetToken[]
 }
-
 
 model Entry {
-  id         String          @id @default(cuid())
-  userId     String
-  user       User            @relation(fields: [userId], references: [id])
-  fullName   String
-  email      String
-  platform   Company
-  date       DateTime
-  salary     Float
-  hours      Int
-  net        Float
-  histories  SalaryHistory[]
-  file       File?           @relation(fields: [fileId], references: [id])
-  fileId     String?         @unique
-  createdAt  DateTime        @default(now())
-  updatedAt  DateTime        @updatedAt
+  id             String           @id @default(uuid())
+  userId         String
+  user           User             @relation(fields: [userId], references: [id])
+  fullName       String
+  email          String
+  platform       String
+  createdAt      DateTime         @default(now())
+  salaryHistories SalaryHistory[]
+  importSessionId String?
+  importSession   ImportSession?  @relation(fields: [importSessionId], references: [id])
 }
 
 model SalaryHistory {
-  id         String   @id @default(cuid())
-  entryId    String
-  entry      Entry    @relation(fields: [entryId], references: [id])
-  oldSalary  Float
-  oldHours   Int
-  oldNet     Float
-  date       DateTime
-  updatedAt  DateTime @default(now())
-  importFile String?
-}
-
-model File {
-  id              String            @id @default(cuid())
-  name            String
-  path            String
-  createdAt       DateTime          @default(now())
-  entry           Entry?
-  importSessions  ImportSession[]
+  id        String   @id @default(uuid())
+  entryId   String
+  entry     Entry    @relation(fields: [entryId], references: [id])
+  date      DateTime
+  amount    Float
+  hours     Int
+  net       Float
+  createdAt DateTime @default(now())
 }
 
 model ImportSession {
-  id         String   @id @default(cuid())
-  company    Company
-  fileId     String
-  file       File     @relation(fields: [fileId], references: [id])
-  createdAt  DateTime @default(now())
+  id        String   @id @default(uuid())
+  platform  String
+  fileId    String
+  file      File     @relation(fields: [fileId], references: [id])
+  createdAt DateTime @default(now())
+  entries   Entry[]
+}
+
+model File {
+  id        String   @id @default(uuid())
+  name      String
+  url       String
+  uploadedAt DateTime @default(now())
+  sessions   ImportSession[]
+}
+
+model ResetToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 }
