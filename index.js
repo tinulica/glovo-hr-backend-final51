@@ -8,6 +8,7 @@ import passwordRoutes from './routes/password.js';
 import importRoutes from './routes/import.js';
 import uploadsRoutes from './routes/uploads.js';
 import dashboardRoutes from './routes/dashboard.js';
+import inviteRoutes from './routes/invite.js';
 
 dotenv.config();
 
@@ -24,6 +25,7 @@ app.use('/import', importRoutes);       // Excel import logic
 app.use('/uploads', uploadsRoutes);     // File upload routes
 app.use('/dashboard', dashboardRoutes); // Admin dashboard data
 app.use('/entries', entriesRoutes);
+app.use('/invite', inviteRoutes);
 
 // Health check
 app.get('/', (req, res) => {
