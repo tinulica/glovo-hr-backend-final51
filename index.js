@@ -2,8 +2,12 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+
 import authRoutes from './routes/auth.js';
 import passwordRoutes from './routes/password.js';
+import importRoutes from './routes/import.js';
+import uploadsRoutes from './routes/uploads.js';
+import dashboardRoutes from './routes/dashboard.js';
 
 dotenv.config();
 
@@ -13,13 +17,21 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Mount your routes
-app.use('/auth', authRoutes);
-app.use('/password', passwordRoutes);
+// Routes
+app.use('/auth', authRoutes);           // /auth/login, /auth/register
+app.use('/password', passwordRoutes);   // /password/forgot, /password/reset
+app.use('/import', importRoutes);       // Excel import logic
+app.use('/uploads', uploadsRoutes);     // File upload routes
+app.use('/dashboard', dashboardRoutes); // Admin dashboard data
 
-// Health check route
+// Health check
 app.get('/', (req, res) => {
   res.send('✅ Glovo HR Backend Running');
+});
+
+// Not found middleware
+app.use((req, res) => {
+  res.status(404).json({ error: 'Route not found' });
 });
 
 app.listen(PORT, () => {
