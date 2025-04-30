@@ -1,35 +1,43 @@
-// index.js
 import express from "express";
-import dotenv from "dotenv";
 import cors from "cors";
-import { PrismaClient } from "@prisma/client";
-import entriesRoutes from "./routes/entries.js";
+import dotenv from "dotenv";
 import authRoutes from "./routes/auth.js";
 import inviteRoutes from "./routes/invite.js";
-import passwordRoutes from "./routes/password.js";
+import entryRoutes from "./routes/entries.js";
+import fileRoutes from "./routes/file.js";
+import reportRoutes from "./routes/report.js";
+import salaryRoutes from "./routes/salary.js";
+import userRoutes from "./routes/users.js";
+import importRoutes from "./routes/import.js";
 
 dotenv.config();
-const app = express();
-const prisma = new PrismaClient();
 
-app.use(cors());
+const app = express();
+
+// Allow your Vercel frontend + localhost
+const allowedOrigins = [
+  "https://sadsadas22222.vercel.app", // your Vercel domain
+  "http://localhost:3000"             // for local development
+];
+
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true,
+}));
+
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use("/uploads", express.static("uploads")); // For uploaded files
 
 // Routes
-app.use("/entries", entriesRoutes);
 app.use("/auth", authRoutes);
 app.use("/invite", inviteRoutes);
-app.use("/password", passwordRoutes);
+app.use("/entries", entryRoutes);
+app.use("/file", fileRoutes);
+app.use("/report", reportRoutes);
+app.use("/salary", salaryRoutes);
+app.use("/users", userRoutes);
+app.use("/import", importRoutes);
 
-// Health check
-app.get("/", (req, res) => {
-  res.send("Glovo HR Backend is running");
-});
-
-// Start server
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
 });
