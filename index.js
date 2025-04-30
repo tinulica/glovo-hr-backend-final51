@@ -1,44 +1,27 @@
-// index.js
+// src/index.js
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { PrismaClient } from '@prisma/client';
+import uploadsRouter from './routes/uploads.js';
+// Add more route imports as needed
 
-// Load env variables
 dotenv.config();
 
 const app = express();
-const prisma = new PrismaClient();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3000;
 
-// Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
-// Routes
-import loginRoutes from './routes/login.js';
-import uploadsRoutes from './routes/uploads.js';
-import dashboardRoutes from './routes/dashboard.js';
-import importRoutes from './routes/import.js';
-import reportRoutes from './routes/report.js';
-import salaryRoutes from './routes/salary.js';
-import usersRoutes from './routes/users.js';
+// Mount your routes
+app.use('/uploads', uploadsRouter);
 
-app.use('/api/login', loginRoutes);
-app.use('/api/uploads', uploadsRoutes);
-app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/import', importRoutes);
-app.use('/api/report', reportRoutes);
-app.use('/api/salary', salaryRoutes);
-app.use('/api/users', usersRoutes);
-
-// Health check
+// Health check route
 app.get('/', (req, res) => {
-  res.send('Glovo HR Manager API is running ✅');
+  res.send('✅ Glovo HR Backend is running.');
 });
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`🚀 Server listening on http://localhost:${PORT}`);
+  console.log(`🚀 Server is running on http://localhost:${PORT}`);
 });
