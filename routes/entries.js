@@ -1,4 +1,7 @@
+// src/routes/entries.js
 import express from "express";
+import auth from "../middleware/auth.js";
+import upload from "../middleware/upload.js";
 import {
   listEntries,
   addEntryManually,
@@ -8,32 +11,39 @@ import {
   exportEntries,
   getSalaryHistory,
   exportSalaryById,
-  emailSalaryById,
+  emailSalaryById
 } from "../controllers/entriesController.js";
-import authMiddleware from "../middleware/auth.js";
-import multer from "multer";
 
-const upload = multer({ dest: "uploads/" });
 const router = express.Router();
 
-// All routes use authMiddleware to extract user + orgId
+// All routes are protected—only authenticated users within their org may access
+router.use(auth);
 
-router.get("/entries", authMiddleware, listEntries);
+// GET    /entries                 → list all entries for this user’s org
+router.get("/", listEntries);
 
-router.post("/entries", authMiddleware, addEntryManually);
+// POST   /entries                 → manually add a new entry
+router.post("/", addEntryManually);
 
-router.put("/entries/:id", authMiddleware, updateEntry);
+// PUT    /entries/:id             → update an existing entry
+router.put("/:id", updateEntry);
 
-router.delete("/entries/:id", authMiddleware, deleteEntry);
+// DELETE /entries/:id             → delete an entry
+router.delete("/:id", deleteEntry);
 
-router.post("/entries/import", authMiddleware, upload.single("file"), importEntries);
+// POST   /entries/import          → bulk import from Excel (file + company)
+router.post("/import", upload.single("file"), importEntries);
 
-router.post("/entries/export", authMiddleware, exportEntries);
+// POST   /entries/export          → export selected columns & date to Excel
+router.post("/export", exportEntries);
 
-router.get("/entries/salary-history/:id", authMiddleware, getSalaryHistory);
+// GET    /entries/salary-history/:id → get salary history for a given entry
+router.get("/salary-history/:id", getSalaryHistory);
 
-router.get("/entries/export/:id", authMiddleware, exportSalaryById);
+// GET    /entries/export/salary/:id  → download salary-history Excel for one entry
+router.get("/export/salary/:id", exportSalaryById);
 
-router.get("/entries/email/:id", authMiddleware, emailSalaryById);
+// POST   /entries/email/salary/:id   → email salary-history to the entry’s email
+router.post("/email/salary/:id", emailSalaryById);
 
 export default router;
