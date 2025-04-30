@@ -1,59 +1,63 @@
-generator client {
-  provider = "prisma-client-js"
-}
+// prisma/schema.prisma
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id       String   @id @default(cuid())
-  email    String   @unique
-  password String
-  entries  Entry[]
+generator client {
+  provider = "prisma-client-js"
 }
 
 model Entry {
-  id             String          @id @default(cuid())
-  fullName       String
-  email          String
-  platform       String          // GLOVO, TAZZ, BRINGO
-  companyName    String?         // Nume Companie from import
-  externalId     String?         // ID column from import
-  totalTransfers Float?          // Total Venituri de transferat
-  userId         String
-  user           User            @relation(fields: [userId], references: [id])
-  importSession  ImportSession?  @relation(fields: [importSessionId], references: [id])
-  importSessionId String?
-  salaryHistories SalaryHistory[]
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  id               String          @id @default(uuid())
+  fullName         String
+  email            String
+  platform         String
+  externalId       String?
+  companyName      String?
+  iban             String?
+  bankName         String?
+  beneficiary      String?
+  userId           String?
+  user             User?           @relation(fields: [userId], references: [id])
+  salaryHistories  SalaryHistory[]
+  importSessionId  String?
+  importSession    ImportSession?  @relation(fields: [importSessionId], references: [id])
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
 }
 
 model SalaryHistory {
-  id        String   @id @default(cuid())
-  amount    Float
-  date      DateTime
-  hours     Int
-  net       Float
+  id        String   @id @default(uuid())
   entryId   String
   entry     Entry    @relation(fields: [entryId], references: [id])
+  date      DateTime
+  amount    Float
+  hours     Int
+  net       Float
   createdAt DateTime @default(now())
 }
 
+model User {
+  id      String  @id @default(uuid())
+  email   String  @unique
+  entries Entry[]
+}
+
 model ImportSession {
-  id        String   @id @default(cuid())
+  id        String  @id @default(uuid())
   platform  String
-  file      UploadedFile?
+  fileId    String?
+  file      File?   @relation(fields: [fileId], references: [id])
   entries   Entry[]
   createdAt DateTime @default(now())
 }
 
-model UploadedFile {
-  id        String   @id @default(cuid())
+model File {
+  id        String  @id @default(uuid())
   name      String
   url       String
-  sessionId String   @unique
-  session   ImportSession @relation(fields: [sessionId], references: [id])
+  session   ImportSession?
+  createdAt DateTime @default(now())
 }
