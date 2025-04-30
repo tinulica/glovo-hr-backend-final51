@@ -1,211 +1,59 @@
-// controllers/entriesController.js
-import prisma from "../lib/prisma.js";
-import parseXLSX from "../utils/parseXLSX.js";
-import generateExcelFromEntries from '../utils/generateExcel.js';
-import gmailMailer from "../utils/gmailMailer.js";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
-import { v4 as uuidv4 } from "uuid";
+generator client {
+  provider = "prisma-client-js"
+}
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
 
-export const listEntries = async (req, res) => {
-  try {
-    const entries = await prisma.entry.findMany({
-      include: { salaryHistories: true }
-    });
-    res.json(entries);
-  } catch (error) {
-    console.error("List entries error:", error);
-    res.status(500).json({ message: "Failed to fetch entries" });
-  }
-};
+model User {
+  id       String   @id @default(cuid())
+  email    String   @unique
+  password String
+  entries  Entry[]
+}
 
-export const addEntryManually = async (req, res) => {
-  try {
-    const { fullName, email, platform } = req.body;
-    const userId = req.user.id;
+model Entry {
+  id             String          @id @default(cuid())
+  fullName       String
+  email          String
+  platform       String          // GLOVO, TAZZ, BRINGO
+  companyName    String?         // Nume Companie from import
+  externalId     String?         // ID column from import
+  totalTransfers Float?          // Total Venituri de transferat
+  userId         String
+  user           User            @relation(fields: [userId], references: [id])
+  importSession  ImportSession?  @relation(fields: [importSessionId], references: [id])
+  importSessionId String?
+  salaryHistories SalaryHistory[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
 
-    const newEntry = await prisma.entry.create({
-      data: { fullName, email, platform, userId }
-    });
+model SalaryHistory {
+  id        String   @id @default(cuid())
+  amount    Float
+  date      DateTime
+  hours     Int
+  net       Float
+  entryId   String
+  entry     Entry    @relation(fields: [entryId], references: [id])
+  createdAt DateTime @default(now())
+}
 
-    res.status(201).json(newEntry);
-  } catch (error) {
-    console.error("Manual entry error:", error);
-    res.status(500).json({ message: "Failed to create entry manually." });
-  }
-};
+model ImportSession {
+  id        String   @id @default(cuid())
+  platform  String
+  file      UploadedFile?
+  entries   Entry[]
+  createdAt DateTime @default(now())
+}
 
-export const importEntries = async (req, res) => {
-  try {
-    const file = req.file;
-    const company = req.body.company;
-
-    if (!file || !company) {
-      return res.status(400).json({ message: "Missing file or company" });
-    }
-
-    const rows = await parseXLSX(file.path);
-
-    const session = await prisma.importSession.create({
-      data: {
-        platform: company,
-        file: {
-          create: {
-            name: file.originalname,
-            url: "",
-          }
-        }
-      }
-    });
-
-    for (const row of rows) {
-      const { fullName, email, amount, date, hours } = row;
-
-      let entry = await prisma.entry.findFirst({
-        where: { fullName, email, platform: company }
-      });
-
-      if (!entry) {
-        entry = await prisma.entry.create({
-          data: {
-            fullName,
-            email,
-            platform: company,
-            userId: req.user.id,
-            importSessionId: session.id
-          }
-        });
-      }
-
-      let tax = 0;
-      const amt = parseFloat(amount);
-
-      if (company === 'GLOVO') {
-        if (parseInt(hours) === 8) {
-          if (amt <= 300) tax = 88;
-          else if (amt <= 600) tax = 176;
-          else if (amt <= 900) tax = 264;
-          else tax = 350;
-        } else if (parseInt(hours) === 4) {
-          if (amt <= 200) tax = 46;
-          else if (amt <= 400) tax = 92;
-          else if (amt <= 600) tax = 138;
-          else tax = 185;
-        }
-      }
-
-      await prisma.salaryHistory.create({
-        data: {
-          entryId: entry.id,
-          amount: amt,
-          date: new Date(date),
-          hours: parseInt(hours),
-          net: amt - tax
-        }
-      });
-    }
-
-    res.json({ message: "Import completed", count: rows.length });
-  } catch (error) {
-    console.error("Import error:", error);
-    res.status(500).json({ message: "Failed to import entries" });
-  }
-};
-
-export const exportEntries = async (req, res) => {
-  try {
-    const { columns = [], date } = req.body;
-
-    let entries = await prisma.entry.findMany({
-      include: {
-        salaryHistories: true
-      }
-    });
-
-    if (date) {
-      const target = new Date(date);
-      entries = entries.map(e => ({
-        ...e,
-        salaryHistories: e.salaryHistories.filter(s => {
-          const d = new Date(s.date);
-          return d.toISOString().slice(0, 10) === target.toISOString().slice(0, 10);
-        })
-      }));
-    }
-
-    const filePath = await generateExcelFromEntries(entries, columns);
-    res.download(filePath, "entries.xlsx", () => {
-      fs.unlink(filePath, () => {});
-    });
-  } catch (error) {
-    console.error("Export error:", error);
-    res.status(500).json({ message: "Failed to export entries" });
-  }
-};
-
-export const getSalaryHistory = async (req, res) => {
-  try {
-    const history = await prisma.salaryHistory.findMany({
-      where: { entryId: req.params.id },
-      orderBy: { date: "desc" }
-    });
-    res.json(history);
-  } catch (error) {
-    console.error("Salary history error:", error);
-    res.status(500).json({ message: "Failed to fetch salary history" });
-  }
-};
-
-export const exportSalaryById = async (req, res) => {
-  try {
-    const entry = await prisma.entry.findUnique({
-      where: { id: req.params.id },
-      include: { salaryHistories: true }
-    });
-
-    if (!entry) {
-      return res.status(404).json({ message: "Entry not found" });
-    }
-
-    const filePath = await generateExcelFromEntries([entry], ["fullName", "email", "platform"]);
-    res.download(filePath, "salary-history.xlsx", () => {
-      fs.unlink(filePath, () => {});
-    });
-  } catch (error) {
-    console.error("Export salary history error:", error);
-    res.status(500).json({ message: "Failed to export salary history" });
-  }
-};
-
-export const emailSalaryById = async (req, res) => {
-  try {
-    const entry = await prisma.entry.findUnique({
-      where: { id: req.params.id },
-      include: { salaryHistories: true }
-    });
-
-    if (!entry) {
-      return res.status(404).json({ message: "Entry not found" });
-    }
-
-    const filePath = await generateExcelFromEntries([entry], ["fullName", "email", "platform"]);
-
-    await gmailMailer({
-      to: entry.email,
-      subject: "Your Salary History",
-      text: "Attached is your salary history.",
-      attachments: [
-        { filename: "salary-history.xlsx", path: filePath }
-      ]
-    });
-
-    fs.unlink(filePath, () => {});
-    res.json({ message: "Email sent" });
-  } catch (error) {
-    console.error("Email salary history error:", error);
-    res.status(500).json({ message: "Failed to send email" });
-  }
-};
+model UploadedFile {
+  id        String   @id @default(cuid())
+  name      String
+  url       String
+  sessionId String   @unique
+  session   ImportSession @relation(fields: [sessionId], references: [id])
+}
