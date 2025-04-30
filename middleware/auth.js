@@ -1,3 +1,4 @@
+// src/middleware/auth.js
 import jwt from "jsonwebtoken";
 import prisma from "../lib/prisma.js";
 
@@ -9,26 +10,29 @@ export default async function auth(req, res, next) {
     }
 
     const token = header.split(" ")[1];
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    let payload;
+    try {
+      payload = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (e) {
+      return res.status(401).json({ message: "Invalid or expired token" });
+    }
 
-    // payload.id must exist
-    if (!payload.id) {
+    if (!payload?.id) {
       return res.status(401).json({ message: "Invalid token payload" });
     }
 
-    // load user to get up-to-date orgId
+    // Fetch the user (and their org) in one go
     const user = await prisma.user.findUnique({
       where: { id: payload.id },
-      select: { id: true, email: true, organizationId: true },
+      select: { id: true, organizationId: true },
     });
     if (!user) {
       return res.status(401).json({ message: "User not found" });
     }
 
-    // stash on req
+    // Attach both userId and orgId
     req.user = {
       id: user.id,
-      email: user.email,
       orgId: user.organizationId,
     };
 
