@@ -2,8 +2,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import uploadsRouter from './routes/uploads.js';
-// Add more route imports as needed
+import authRoutes from './routes/auth.js';
+import passwordRoutes from './routes/password.js';
 
 dotenv.config();
 
@@ -14,14 +14,14 @@ app.use(cors());
 app.use(express.json());
 
 // Mount your routes
-app.use('/uploads', uploadsRouter);
+app.use('/auth', authRoutes);
+app.use('/password', passwordRoutes);
 
 // Health check route
 app.get('/', (req, res) => {
-  res.send('✅ Glovo HR Backend is running.');
+  res.send('✅ Glovo HR Backend Running');
 });
 
-// Start server
 app.listen(PORT, () => {
-  console.log(`🚀 Server is running on http://localhost:${PORT}`);
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
