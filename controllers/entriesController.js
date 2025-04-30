@@ -1,6 +1,7 @@
+// controllers/entriesController.js
 import prisma from "../lib/prisma.js";
 import parseXLSX from "../utils/parseXLSX.js";
-import generateExcelFromEntries from "../utils/generateExcel.js";
+import generateExcelFromEntries from '../utils/generateExcel.js';
 import gmailMailer from "../utils/gmailMailer.js";
 import fs from "fs";
 import path from "path";
@@ -8,6 +9,8 @@ import { fileURLToPath } from "url";
 import { v4 as uuidv4 } from "uuid";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const tmpDir = path.join(__dirname, "../tmp");
+if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir);
 
 // GET /entries
 export const listEntries = async (req, res) => {
@@ -26,7 +29,8 @@ export const listEntries = async (req, res) => {
 export const addEntryManually = async (req, res) => {
   try {
     const { fullName, email, platform, externalId, companyName } = req.body;
-    const userId = req.user.id;
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
     const newEntry = await prisma.entry.create({
       data: {
@@ -35,7 +39,9 @@ export const addEntryManually = async (req, res) => {
         platform,
         externalId,
         companyName,
-        userId
+        user: {
+          connect: { id: userId }
+        }
       }
     });
 
@@ -51,12 +57,13 @@ export const importEntries = async (req, res) => {
   try {
     const file = req.file;
     const company = req.body.company;
-
-    if (!file || !company) {
-      return res.status(400).json({ message: "Missing file or company" });
+    const userId = req.user?.id;
+    if (!file || !company || !userId) {
+      return res.status(400).json({ message: "Missing file, company, or user." });
     }
 
-    const rows = await parseXLSX(file.path); // parses fullName, email, externalId, etc.
+    const rows = await parseXLSX(file.path);
+    let added = 0, updated = 0;
 
     const session = await prisma.importSession.create({
       data: {
@@ -64,66 +71,55 @@ export const importEntries = async (req, res) => {
         file: {
           create: {
             name: file.originalname,
-            url: "" // Optional
+            url: ""
           }
         }
       }
     });
 
-    let newCount = 0;
-    let updatedCount = 0;
-
     for (const row of rows) {
-      const {
-        externalId,
-        fullName,
-        email,
-        companyName,
-        amount,
-        date,
-        platform
-      } = row;
+      const { id, fullName, email, companyName, total } = row;
+      if (!fullName || !email) continue;
 
       let entry = await prisma.entry.findFirst({
         where: {
-          externalId,
-          platform
+          externalId: id,
+          email,
+          platform: company
         }
       });
 
       if (!entry) {
         entry = await prisma.entry.create({
           data: {
-            externalId,
+            externalId: id,
             fullName,
             email,
             companyName,
-            platform,
-            userId: req.user.id,
-            importSessionId: session.id
+            platform: company,
+            importSessionId: session.id,
+            user: {
+              connect: { id: userId }
+            }
           }
         });
-        newCount++;
+        added++;
       } else {
-        updatedCount++;
+        updated++;
       }
 
       await prisma.salaryHistory.create({
         data: {
           entryId: entry.id,
-          date: new Date(date),
-          amount: parseFloat(amount),
-          source: "import"
+          amount: parseFloat(total) || 0,
+          date: new Date(),
+          hours: 8,
+          net: parseFloat(total) || 0
         }
       });
     }
 
-    res.json({
-      message: `Import completed: ${newCount} added, ${updatedCount} updated.`,
-      added: newCount,
-      updated: updatedCount
-    });
-
+    res.json({ message: `Import completed: ${added} added, ${updated} updated.` });
   } catch (error) {
     console.error("Import error:", error);
     res.status(500).json({ message: "Failed to import entries" });
@@ -134,7 +130,6 @@ export const importEntries = async (req, res) => {
 export const exportEntries = async (req, res) => {
   try {
     const { columns = [], date } = req.body;
-
     let entries = await prisma.entry.findMany({
       include: {
         salaryHistories: true
@@ -152,9 +147,8 @@ export const exportEntries = async (req, res) => {
       }));
     }
 
-    const buffer = await generateExcelFromEntries(entries, columns);
-    const filePath = path.join(__dirname, `../../tmp/entries-${Date.now()}.xlsx`);
-    fs.writeFileSync(filePath, buffer);
+    const filePath = path.join(tmpDir, `entries-${Date.now()}.xlsx`);
+    await generateExcelFromEntries(entries, columns, filePath);
 
     res.download(filePath, "entries.xlsx", () => {
       fs.unlink(filePath, () => {});
@@ -191,9 +185,8 @@ export const exportSalaryById = async (req, res) => {
       return res.status(404).json({ message: "Entry not found" });
     }
 
-    const buffer = await generateExcelFromEntries([entry], ["fullName", "email", "platform"]);
-    const filePath = path.join(__dirname, `../../tmp/salary-${Date.now()}.xlsx`);
-    fs.writeFileSync(filePath, buffer);
+    const filePath = path.join(tmpDir, `salary-history-${entry.id}.xlsx`);
+    await generateExcelFromEntries([entry], ["fullName", "email", "platform"], filePath);
 
     res.download(filePath, "salary-history.xlsx", () => {
       fs.unlink(filePath, () => {});
@@ -216,9 +209,8 @@ export const emailSalaryById = async (req, res) => {
       return res.status(404).json({ message: "Entry not found" });
     }
 
-    const buffer = await generateExcelFromEntries([entry], ["fullName", "email", "platform"]);
-    const filePath = path.join(__dirname, `../../tmp/email-salary-${Date.now()}.xlsx`);
-    fs.writeFileSync(filePath, buffer);
+    const filePath = path.join(tmpDir, `salary-${entry.id}.xlsx`);
+    await generateExcelFromEntries([entry], ["fullName", "email", "platform"], filePath);
 
     await gmailMailer({
       to: entry.email,
