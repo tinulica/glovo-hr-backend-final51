@@ -1,46 +1,44 @@
-// src/routes/entries.js
-import express from "express";
-import auth from "../middleware/auth.js";
-import upload from "../middleware/upload.js";
-import {
-  listEntries,
-  importEntries,
-  addEntryManually,
-  updateEntry,
-  deleteEntry,
-  exportEntries,
-  getSalaryHistory,
-  exportSalaryById,
-  emailSalaryById
-} from "../controllers/entriesController.js";
+// routes/entries.ts
+import express from 'express';
+import { prisma } from '../lib/prisma';
+import { authenticateJWT } from '../middleware/authenticate';
 
 const router = express.Router();
 
-// GET all entries
-router.get("/", auth, listEntries);
+router.get('/entries', authenticateJWT, async (req, res) => {
+  const { organizationId } = req.user;
 
-// POST import file with smart update/insert
-router.post("/import", auth, upload.single("file"), importEntries);
+  try {
+    const entries = await prisma.entry.findMany({
+      where: { organizationId },
+      include: { createdBy: { select: { email: true } } },
+    });
+    res.json(entries);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch entries' });
+  }
+});
 
-// POST manual entry
-router.post("/", auth, addEntryManually);
+router.post('/entries', authenticateJWT, async (req, res) => {
+  const { name, amount, date } = req.body;
+  const { organizationId, userId } = req.user;
 
-// PUT update an entry
-router.put("/:id", auth, updateEntry);
-
-// DELETE an entry
-router.delete("/:id", auth, deleteEntry);
-
-// POST export Excel (optional date + selected columns)
-router.post("/export", auth, exportEntries);
-
-// GET salary history for a specific entry
-router.get("/salary-history/:id", auth, getSalaryHistory);
-
-// GET Excel file of salary history by entry
-router.get("/export/salary/:id", auth, exportSalaryById);
-
-// POST send Gmail email with salary doc
-router.post("/email/salary/:id", auth, emailSalaryById);
+  try {
+    const entry = await prisma.entry.create({
+      data: {
+        name,
+        amount,
+        date: new Date(date),
+        createdById: userId,
+        organizationId,
+      },
+    });
+    res.status(201).json(entry);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to create entry' });
+  }
+});
 
 export default router;
