@@ -1,58 +1,34 @@
 // index.js
+import express from "express";
+import dotenv from "dotenv";
+import cors from "cors";
+import { PrismaClient } from "@prisma/client";
+import entriesRoutes from "./routes/entries.js";
+import authRoutes from "./routes/auth.js";
+import inviteRoutes from "./routes/invite.js";
+import passwordRoutes from "./routes/password.js";
 
-require('dotenv').config();
-const express = require('express');
-const cors    = require('cors');
-const { PrismaClient } = require('@prisma/client');
-
-const authRoutes   = require('./routes/auth');
-const inviteRoutes = require('./routes/invite');
-const entryRoutes  = require('./routes/entries');
-
+dotenv.config();
 const app = express();
 const prisma = new PrismaClient();
 
-// --- CORS Setup ---
-// For production: whitelist only your origins
-const allowedOrigins = [
-  'http://localhost:3000',                             // React dev
-  'https://glovo-hr-frontend-final4.vercel.app'        // Vercel frontend
-];
-
-app.use(cors({
-  origin(origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error(`CORS not allowed for ${origin}`));
-    }
-  },
-  methods: ['GET','POST','PUT','DELETE','OPTIONS'],
-  credentials: true
-}));
-
+app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use("/uploads", express.static("uploads")); // For uploaded files
 
-// --- Health Check ---
-app.get('/', (req, res) => {
-  res.send('Glovo HR Backend is running');
+// Routes
+app.use("/entries", entriesRoutes);
+app.use("/auth", authRoutes);
+app.use("/invite", inviteRoutes);
+app.use("/password", passwordRoutes);
+
+// Health check
+app.get("/", (req, res) => {
+  res.send("Glovo HR Backend is running");
 });
 
-// --- Mount Routes ---
-app.use('/auth',   authRoutes);
-app.use('/invite', inviteRoutes);
-app.use('/entries',entryRoutes);
-
-// --- Global Error Handler ---
-app.use((err, req, res, next) => {
-  console.error(err.message);
-  if (err.message.startsWith('CORS')) {
-    return res.status(403).json({ message: err.message });
-  }
-  res.status(500).json({ message: 'Server Error' });
-});
-
-// --- Start Server ---
+// Start server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
