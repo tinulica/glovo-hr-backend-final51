@@ -1,5 +1,6 @@
 // routes/entries.js
 import express from "express";
+import { addEntryManually } from "../controllers/entriesController.js";
 import auth from "../middleware/auth.js";
 import upload from "../middleware/upload.js";
 import {
@@ -21,6 +22,8 @@ router.post("/import", auth, upload.single("file"), importEntries);
 
 // POST export Excel (optional date + selected columns)
 router.post("/export", auth, exportEntries);
+
+router.post("/", auth, addEntryManually);
 
 // GET salary history for a specific entry
 router.get("/salary-history/:id", auth, getSalaryHistory);
