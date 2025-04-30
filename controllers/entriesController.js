@@ -1,5 +1,3 @@
-// src/controllers/entriesController.js
-
 import prisma from "../lib/prisma.js";
 import parseXLSX from "../utils/parseXLSX.js";
 import generateExcelFromEntries from "../utils/generateExcel.js";
@@ -10,14 +8,11 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-/**
- * List all entries for the current organization
- */
+// List entries for the user's organization
 export const listEntries = async (req, res) => {
   try {
-    const orgId = req.user.organizationId;
     const entries = await prisma.entry.findMany({
-      where: { organizationId: orgId },
+      where: { organizationId: req.user.orgId },
       include: { salaryHistories: true },
     });
     res.json(entries);
@@ -27,28 +22,16 @@ export const listEntries = async (req, res) => {
   }
 };
 
-/**
- * Manually add one entry under your org
- */
+// Add a new entry manually (scoped)
 export const addEntryManually = async (req, res) => {
   try {
-    const orgId = req.user.organizationId;
-    const createdBy = req.user.id;
     const {
-      fullName,
-      email,
-      platform,
-      externalId,
-      companyName,
-      iban,
-      bankName,
-      beneficiary,
+      fullName, email, platform, externalId,
+      companyName, iban, bankName, beneficiary
     } = req.body;
 
     const newEntry = await prisma.entry.create({
       data: {
-        organizationId: orgId,
-        createdById: createdBy,
         fullName,
         email,
         platform,
@@ -57,6 +40,8 @@ export const addEntryManually = async (req, res) => {
         iban,
         bankName,
         beneficiary,
+        createdById: req.user.id,
+        organizationId: req.user.orgId,
       },
     });
 
@@ -67,19 +52,18 @@ export const addEntryManually = async (req, res) => {
   }
 };
 
-/**
- * Update one entry (only if it belongs to your org)
- */
+// Update entry (scoped)
 export const updateEntry = async (req, res) => {
   try {
-    const orgId = req.user.organizationId;
     const { id } = req.params;
-    // ensure the entry exists in your org
-    const existing = await prisma.entry.findFirst({
-      where: { id, organizationId: orgId },
+
+    // Ensure the entry belongs to this org
+    const existing = await prisma.entry.findUnique({
+      where: { id },
     });
-    if (!existing) {
-      return res.status(404).json({ message: "Entry not found" });
+
+    if (!existing || existing.organizationId !== req.user.orgId) {
+      return res.status(403).json({ message: "Access denied." });
     }
 
     const updated = await prisma.entry.update({
@@ -94,19 +78,15 @@ export const updateEntry = async (req, res) => {
   }
 };
 
-/**
- * Delete one entry (only if it belongs to your org)
- */
+// Delete entry (scoped)
 export const deleteEntry = async (req, res) => {
   try {
-    const orgId = req.user.organizationId;
     const { id } = req.params;
-    // verify ownership
-    const existing = await prisma.entry.findFirst({
-      where: { id, organizationId: orgId },
-    });
-    if (!existing) {
-      return res.status(404).json({ message: "Entry not found" });
+
+    const entry = await prisma.entry.findUnique({ where: { id } });
+
+    if (!entry || entry.organizationId !== req.user.orgId) {
+      return res.status(403).json({ message: "Access denied." });
     }
 
     await prisma.entry.delete({ where: { id } });
@@ -117,15 +97,11 @@ export const deleteEntry = async (req, res) => {
   }
 };
 
-/**
- * Import many from Excel; update existing or create new under your org
- */
+// Import entries (scoped)
 export const importEntries = async (req, res) => {
   try {
     const file = req.file;
     const company = req.body.company;
-    const orgId = req.user.organizationId;
-    const createdBy = req.user.id;
 
     if (!file || !company) {
       return res.status(400).json({ message: "Missing file or company" });
@@ -135,14 +111,10 @@ export const importEntries = async (req, res) => {
 
     const session = await prisma.importSession.create({
       data: {
-        organizationId: orgId,
         platform: company,
-        file: {
-          create: {
-            name: file.originalname,
-            url: "", // optional upload URL
-          },
-        },
+        organizationId: req.user.orgId,
+        createdById: req.user.id,
+        file: { create: { name: file.originalname, url: "" } },
       },
     });
 
@@ -151,33 +123,22 @@ export const importEntries = async (req, res) => {
 
     for (const row of rows) {
       const {
-        fullName,
-        email,
-        amount,
-        date,
-        hours,
-        net,
-        externalId,
-        companyName,
-        iban,
-        bankName,
-        beneficiary,
+        fullName, email, amount, date, hours, net,
+        externalId, companyName, iban, bankName, beneficiary
       } = row;
 
       let entry = await prisma.entry.findFirst({
         where: {
-          organizationId: orgId,
           fullName,
           email,
           platform: company,
+          organizationId: req.user.orgId,
         },
       });
 
       if (!entry) {
         entry = await prisma.entry.create({
           data: {
-            organizationId: orgId,
-            createdById: createdBy,
             fullName,
             email,
             platform: company,
@@ -186,6 +147,8 @@ export const importEntries = async (req, res) => {
             iban,
             bankName,
             beneficiary,
+            organizationId: req.user.orgId,
+            createdById: req.user.id,
             importSessionId: session.id,
           },
         });
@@ -199,7 +162,7 @@ export const importEntries = async (req, res) => {
           entryId: entry.id,
           amount: parseFloat(amount),
           date: new Date(date),
-          hours: parseInt(hours, 10),
+          hours: parseInt(hours),
           net: parseFloat(net),
         },
       });
@@ -212,25 +175,21 @@ export const importEntries = async (req, res) => {
   }
 };
 
-/**
- * Export your org’s entries into Excel
- */
+// Export entries (scoped)
 export const exportEntries = async (req, res) => {
   try {
-    const orgId = req.user.organizationId;
     const { columns = [], date } = req.body;
-
     let entries = await prisma.entry.findMany({
-      where: { organizationId: orgId },
+      where: { organizationId: req.user.orgId },
       include: { salaryHistories: true },
     });
 
     if (date) {
-      const target = new Date(date).toISOString().slice(0, 10);
+      const target = new Date(date);
       entries = entries.map((e) => ({
         ...e,
         salaryHistories: e.salaryHistories.filter((s) =>
-          new Date(s.date).toISOString().slice(0, 10) === target
+          new Date(s.date).toISOString().slice(0, 10) === target.toISOString().slice(0, 10)
         ),
       }));
     }
@@ -239,33 +198,28 @@ export const exportEntries = async (req, res) => {
     const buffer = await generateExcelFromEntries(entries, columns);
     fs.writeFileSync(filePath, buffer);
 
-    res.download(filePath, "entries.xlsx", () => fs.unlinkSync(filePath));
+    res.download(filePath, "entries.xlsx", () => fs.unlink(filePath, () => {}));
   } catch (error) {
     console.error("Export error:", error);
     res.status(500).json({ message: "Failed to export entries" });
   }
 };
 
-/**
- * Get salary history for one entry (scoped to org)
- */
+// Get salary history (scoped)
 export const getSalaryHistory = async (req, res) => {
   try {
-    const orgId = req.user.organizationId;
     const { id } = req.params;
 
-    // ensure the entry belongs to you
-    const entry = await prisma.entry.findFirst({
-      where: { id, organizationId: orgId },
-    });
-    if (!entry) {
-      return res.status(404).json({ message: "Entry not found" });
+    const entry = await prisma.entry.findUnique({ where: { id } });
+    if (!entry || entry.organizationId !== req.user.orgId) {
+      return res.status(403).json({ message: "Access denied." });
     }
 
     const history = await prisma.salaryHistory.findMany({
       where: { entryId: id },
       orderBy: { date: "desc" },
     });
+
     res.json(history);
   } catch (error) {
     console.error("Salary history error:", error);
@@ -273,60 +227,43 @@ export const getSalaryHistory = async (req, res) => {
   }
 };
 
-/**
- * Export a single entry’s salary history as Excel
- */
+// Export salary by ID (scoped)
 export const exportSalaryById = async (req, res) => {
   try {
-    const orgId = req.user.organizationId;
-    const { id } = req.params;
-
-    const entry = await prisma.entry.findFirst({
-      where: { id, organizationId: orgId },
+    const entry = await prisma.entry.findUnique({
+      where: { id: req.params.id },
       include: { salaryHistories: true },
     });
-    if (!entry) {
-      return res.status(404).json({ message: "Entry not found" });
+
+    if (!entry || entry.organizationId !== req.user.orgId) {
+      return res.status(403).json({ message: "Access denied." });
     }
 
     const filePath = `/tmp/salary-${Date.now()}.xlsx`;
-    const buffer = await generateExcelFromEntries([entry], [
-      "fullName",
-      "email",
-      "platform",
-      // you can add other columns here if you like
-    ]);
+    const buffer = await generateExcelFromEntries([entry], ["fullName", "email", "platform"]);
     fs.writeFileSync(filePath, buffer);
 
-    res.download(filePath, "salary-history.xlsx", () => fs.unlinkSync(filePath));
+    res.download(filePath, "salary-history.xlsx", () => fs.unlink(filePath, () => {}));
   } catch (error) {
     console.error("Export salary history error:", error);
     res.status(500).json({ message: "Failed to export salary history" });
   }
 };
 
-/**
- * Email a single entry’s salary history (scoped to org)
- */
+// Email salary by ID (scoped)
 export const emailSalaryById = async (req, res) => {
   try {
-    const orgId = req.user.organizationId;
-    const { id } = req.params;
-
-    const entry = await prisma.entry.findFirst({
-      where: { id, organizationId: orgId },
+    const entry = await prisma.entry.findUnique({
+      where: { id: req.params.id },
       include: { salaryHistories: true },
     });
-    if (!entry) {
-      return res.status(404).json({ message: "Entry not found" });
+
+    if (!entry || entry.organizationId !== req.user.orgId) {
+      return res.status(403).json({ message: "Access denied." });
     }
 
     const filePath = `/tmp/salary-${Date.now()}.xlsx`;
-    const buffer = await generateExcelFromEntries([entry], [
-      "fullName",
-      "email",
-      "platform",
-    ]);
+    const buffer = await generateExcelFromEntries([entry], ["fullName", "email", "platform"]);
     fs.writeFileSync(filePath, buffer);
 
     await gmailMailer({
@@ -336,7 +273,7 @@ export const emailSalaryById = async (req, res) => {
       attachments: [{ filename: "salary-history.xlsx", path: filePath }],
     });
 
-    fs.unlinkSync(filePath);
+    fs.unlink(filePath, () => {});
     res.json({ message: "Email sent" });
   } catch (error) {
     console.error("Email salary history error:", error);
