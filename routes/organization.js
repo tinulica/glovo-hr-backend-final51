@@ -11,7 +11,6 @@ router.post('/setup', auth, async (req, res) => {
   try {
     const { name, bio, invites = [] } = req.body
 
-    // Update organization name and bio
     await prisma.organization.update({
       where: { id: req.user.orgId },
       data: {
@@ -21,11 +20,9 @@ router.post('/setup', auth, async (req, res) => {
       }
     })
 
-    // Create invite tokens for any additional emails
     for (const email of invites) {
       if (!email.trim()) continue
 
-      // Skip if user already exists
       const existingUser = await prisma.user.findUnique({ where: { email } })
       if (existingUser) continue
 
@@ -43,6 +40,22 @@ router.post('/setup', auth, async (req, res) => {
   } catch (err) {
     console.error('Org setup error:', err)
     res.status(500).json({ message: 'Organization setup failed' })
+  }
+})
+
+// ✅ NEW: GET /organizations
+router.get('/', auth, async (req, res) => {
+  try {
+    const orgs = await prisma.organization.findMany({
+      select: {
+        id: true,
+        name: true
+      }
+    })
+    res.json(orgs)
+  } catch (err) {
+    console.error('Fetch orgs error:', err)
+    res.status(500).json({ message: 'Failed to fetch organizations' })
   }
 })
 
