@@ -32,6 +32,8 @@ model User {
 model Organization {
   id          String    @id @default(uuid())
   name        String
+   bio            String?   // Optional bio
+  hasCompletedSetup Boolean @default(false) // ⬆️ New field
   // exactly one owner
   ownerId     String    @unique
   owner       User      @relation("OrgOwner", fields: [ownerId], references: [id])
