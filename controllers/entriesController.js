@@ -41,11 +41,11 @@ export const addEntryManually = async (req, res) => {
         iban,
         bankName,
         beneficiary,
-        collabType,
-        collabDetails,
+        collabType: collabType || null,
+        collabDetails: collabDetails || {},
         createdById: req.user.id,
-        organizationId: req.user.orgId,
-      },
+        organizationId: req.user.orgId
+      }
     });
 
     res.status(201).json(newEntry);
@@ -59,30 +59,63 @@ export const addEntryManually = async (req, res) => {
 export const updateEntry = async (req, res) => {
   try {
     const { id } = req.params;
-
-    const existing = await prisma.entry.findUnique({
-      where: { id },
-    });
+    const existing = await prisma.entry.findUnique({ where: { id } });
 
     if (!existing || existing.organizationId !== req.user.orgId) {
       return res.status(403).json({ message: "Access denied." });
     }
 
-    const { salary, ...rest } = req.body;
+    const {
+      salary,
+      fullName, email, platform, externalId,
+      companyName, iban, bankName, beneficiary,
+      collabType, collabDetails
+    } = req.body;
 
-const updateData = {
-  fullName: rest.fullName,
-  email: rest.email,
-  platform: rest.platform,
-  externalId: rest.externalId,
-  companyName: rest.companyName,
-  iban: rest.iban,
-  bankName: rest.bankName,
-  beneficiary: rest.beneficiary,
-  collabType: rest.collabType || null,
-  collabDetails: rest.collabDetails || undefined,
+    const updated = await prisma.entry.update({
+      where: { id },
+      data: {
+        fullName,
+        email,
+        platform,
+        externalId,
+        companyName,
+        iban,
+        bankName,
+        beneficiary,
+        collabType: collabType || null,
+        collabDetails: collabDetails || {}
+      }
+    });
+
+        if (salary !== undefined && !isNaN(salary)) {
+      const latest = await prisma.salaryHistory.findFirst({
+        where: { entryId: id },
+        orderBy: { changedAt: 'desc' }
+      });
+
+      const different = !latest || parseFloat(latest.amount) !== parseFloat(salary);
+
+      if (different) {
+        await prisma.salaryHistory.create({
+          data: {
+            entryId: id,
+            amount: parseFloat(salary),
+            date: new Date(),
+            hours: 8,
+            net: parseFloat(salary),
+            changedAt: new Date()
+          }
+        });
+      }
+    }
+
+    res.json(updated);
+  } catch (error) {
+    console.error("Update entry error:", error);
+    res.status(500).json({ message: "Failed to update entry." });
+  }
 };
-
 
     // Ensure collabDetails is stored as valid JSON if passed as a string
     if (typeof updateData.collabDetails === 'string') {
