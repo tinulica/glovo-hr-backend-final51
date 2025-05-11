@@ -118,14 +118,14 @@ model Invitation {
   invitedEmail   String
   createdAt      DateTime       @default(now())
 
-  inviter        User           @relation("Inviter", fields: [inviterId], references: [id])
-  inviterId      String
+  inviterId      String?        // temporarily optional
+  inviter        User?          @relation("Inviter", fields: [inviterId], references: [id])
 
-  invitee        User?          @relation("Invitee", fields: [inviteeId], references: [id])
   inviteeId      String?
+  invitee        User?          @relation("Invitee", fields: [inviteeId], references: [id])
 
-  organization   Organization   @relation(fields: [organizationId], references: [id])
   organizationId String
+  organization   Organization   @relation(fields: [organizationId], references: [id])
 }
 
 model ResetToken {
