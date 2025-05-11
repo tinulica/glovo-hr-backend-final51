@@ -14,18 +14,16 @@ model User {
   email              String           @unique
   password           String
   fullName           String?
-  // until we assign them, orgId can be null
-  organizationId     String?          
-  // the organization they belong to (member side)
+  organizationId     String?
   organization       Organization?    @relation("OrgMembers", fields: [organizationId], references: [id])
-  // the orgs they own (owner side)
   organizationsOwned Organization[]   @relation("OrgOwner")
-  entries            Entry[]          // people they created/imported
+  entries            Entry[]
   importSessions     ImportSession[]  @relation("SessionCreator")
   invitationsSent    Invitation[]     @relation("Inviter")
   invitationsReceived Invitation[]    @relation("Invitee")
   resetTokens        ResetToken[]
 
+  hasCompletedSetup  Boolean          @default(false) // ✅ NEW
   createdAt          DateTime         @default(now())
 }
 
