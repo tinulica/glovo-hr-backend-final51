@@ -12,18 +12,36 @@ if (!JWT_SECRET) {
 export async function register(req, res) {
   try {
     const { email, password } = req.body;
+
     // conflict check
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
-      return res
-        .status(409)
-        .json({ message: "Email already registered" });
+      return res.status(409).json({ message: "Email already registered" });
     }
 
-    // hash & create
+    // hash password
     const hash = await bcrypt.hash(password, 10);
+
+    // create user
     const user = await prisma.user.create({
-      data: { email, password: hash },
+      data: {
+        email,
+        password: hash,
+      },
+    });
+
+    // create organization with temporary name (setup later)
+    const organization = await prisma.organization.create({
+      data: {
+        name: "", // to be filled in setup step
+        ownerId: user.id,
+      },
+    });
+
+    // link user to org
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { organizationId: organization.id },
     });
 
     // issue token
