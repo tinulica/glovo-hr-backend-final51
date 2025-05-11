@@ -68,7 +68,21 @@ export const updateEntry = async (req, res) => {
       return res.status(403).json({ message: "Access denied." });
     }
 
-    const { salary, ...updateData } = req.body;
+    const { salary, ...rest } = req.body;
+
+const updateData = {
+  fullName: rest.fullName,
+  email: rest.email,
+  platform: rest.platform,
+  externalId: rest.externalId,
+  companyName: rest.companyName,
+  iban: rest.iban,
+  bankName: rest.bankName,
+  beneficiary: rest.beneficiary,
+  collabType: rest.collabType || null,
+  collabDetails: rest.collabDetails || undefined,
+};
+
 
     // Ensure collabDetails is stored as valid JSON if passed as a string
     if (typeof updateData.collabDetails === 'string') {
