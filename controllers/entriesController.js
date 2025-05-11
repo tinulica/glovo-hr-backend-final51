@@ -27,7 +27,8 @@ export const addEntryManually = async (req, res) => {
   try {
     const {
       fullName, email, platform, externalId,
-      companyName, iban, bankName, beneficiary
+      companyName, iban, bankName, beneficiary,
+      collabType, collabDetails
     } = req.body;
 
     const newEntry = await prisma.entry.create({
@@ -40,6 +41,8 @@ export const addEntryManually = async (req, res) => {
         iban,
         bankName,
         beneficiary,
+        collabType,
+        collabDetails,
         createdById: req.user.id,
         organizationId: req.user.orgId,
       },
@@ -66,10 +69,34 @@ export const updateEntry = async (req, res) => {
       return res.status(403).json({ message: "Access denied." });
     }
 
+    const { salary, ...updateData } = req.body;
+
     const updated = await prisma.entry.update({
       where: { id },
-      data: req.body,
+      data: updateData,
     });
+
+    if (salary !== undefined && !isNaN(salary)) {
+      const latest = await prisma.salaryHistory.findFirst({
+        where: { entryId: id },
+        orderBy: { changedAt: 'desc' },
+      });
+
+      const different = !latest || parseFloat(latest.amount) !== parseFloat(salary);
+
+      if (different) {
+        await prisma.salaryHistory.create({
+          data: {
+            entryId: id,
+            amount: parseFloat(salary),
+            date: new Date(),
+            hours: 8,
+            net: parseFloat(salary),
+            changedAt: new Date(),
+          },
+        });
+      }
+    }
 
     res.json(updated);
   } catch (error) {
@@ -172,111 +199,5 @@ export const importEntries = async (req, res) => {
   } catch (error) {
     console.error("Import error:", error);
     res.status(500).json({ message: "Failed to import entries" });
-  }
-};
-
-// Export entries (scoped)
-export const exportEntries = async (req, res) => {
-  try {
-    const { columns = [], date } = req.body;
-    let entries = await prisma.entry.findMany({
-      where: { organizationId: req.user.orgId },
-      include: { salaryHistories: true },
-    });
-
-    if (date) {
-      const target = new Date(date);
-      entries = entries.map((e) => ({
-        ...e,
-        salaryHistories: e.salaryHistories.filter((s) =>
-          new Date(s.date).toISOString().slice(0, 10) === target.toISOString().slice(0, 10)
-        ),
-      }));
-    }
-
-    const filePath = `/tmp/entries-${Date.now()}.xlsx`;
-    const buffer = await generateExcelFromEntries(entries, columns);
-    fs.writeFileSync(filePath, buffer);
-
-    res.download(filePath, "entries.xlsx", () => fs.unlink(filePath, () => {}));
-  } catch (error) {
-    console.error("Export error:", error);
-    res.status(500).json({ message: "Failed to export entries" });
-  }
-};
-
-// Get salary history (scoped)
-export const getSalaryHistory = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const entry = await prisma.entry.findUnique({ where: { id } });
-    if (!entry || entry.organizationId !== req.user.orgId) {
-      return res.status(403).json({ message: "Access denied." });
-    }
-
-    const history = await prisma.salaryHistory.findMany({
-      where: { entryId: id },
-      orderBy: { date: "desc" },
-    });
-
-    res.json(history);
-  } catch (error) {
-    console.error("Salary history error:", error);
-    res.status(500).json({ message: "Failed to fetch salary history" });
-  }
-};
-
-// Export salary by ID (scoped)
-export const exportSalaryById = async (req, res) => {
-  try {
-    const entry = await prisma.entry.findUnique({
-      where: { id: req.params.id },
-      include: { salaryHistories: true },
-    });
-
-    if (!entry || entry.organizationId !== req.user.orgId) {
-      return res.status(403).json({ message: "Access denied." });
-    }
-
-    const filePath = `/tmp/salary-${Date.now()}.xlsx`;
-    const buffer = await generateExcelFromEntries([entry], ["fullName", "email", "platform"]);
-    fs.writeFileSync(filePath, buffer);
-
-    res.download(filePath, "salary-history.xlsx", () => fs.unlink(filePath, () => {}));
-  } catch (error) {
-    console.error("Export salary history error:", error);
-    res.status(500).json({ message: "Failed to export salary history" });
-  }
-};
-
-// Email salary by ID (scoped)
-export const emailSalaryById = async (req, res) => {
-  try {
-    const entry = await prisma.entry.findUnique({
-      where: { id: req.params.id },
-      include: { salaryHistories: true },
-    });
-
-    if (!entry || entry.organizationId !== req.user.orgId) {
-      return res.status(403).json({ message: "Access denied." });
-    }
-
-    const filePath = `/tmp/salary-${Date.now()}.xlsx`;
-    const buffer = await generateExcelFromEntries([entry], ["fullName", "email", "platform"]);
-    fs.writeFileSync(filePath, buffer);
-
-    await gmailMailer({
-      to: entry.email,
-      subject: "Your Salary History",
-      text: "Attached is your salary history.",
-      attachments: [{ filename: "salary-history.xlsx", path: filePath }],
-    });
-
-    fs.unlink(filePath, () => {});
-    res.json({ message: "Email sent" });
-  } catch (error) {
-    console.error("Email salary history error:", error);
-    res.status(500).json({ message: "Failed to send email" });
   }
 };
