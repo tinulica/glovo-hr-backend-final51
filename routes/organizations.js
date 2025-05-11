@@ -1,6 +1,6 @@
 import express from 'express';
 import prisma from '../lib/prisma.js';
-import { requireAuth } from '../middleware/auth.js';
+import auth from '../middleware/auth.js'
 import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();
