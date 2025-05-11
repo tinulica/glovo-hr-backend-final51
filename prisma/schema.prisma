@@ -46,7 +46,7 @@ model Organization {
 }
 
 model Entry {
-  id             String          @id @default(uuid())
+  id             String    @id @default(uuid())
   fullName       String
   email          String
   platform       String
@@ -55,13 +55,10 @@ model Entry {
   iban           String?
   bankName       String?
   beneficiary    String?
-  createdAt      DateTime        @default(now())
+  createdAt      DateTime  @default(now())
+  collabType     String?
+  collabDetails  Json?
 
-  // NEW FIELDS FOR COLLAB TYPES
-  collabType     String?         // "angajare" or "colaborare"
-  collabDetails  Json?           // store flexible structured data (JSON)
-
-  // Relations
   organization     Organization    @relation(fields: [organizationId], references: [id])
   organizationId   String
   createdBy        User            @relation(fields: [createdById], references: [id])
@@ -72,6 +69,7 @@ model Entry {
 
   salaryHistories  SalaryHistory[]
 }
+
 
 
 model SalaryHistory {
