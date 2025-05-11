@@ -56,7 +56,8 @@ model Entry {
   bankName         String?
   beneficiary      String?
   createdAt        DateTime        @default(now())
-
+  collabType     String?
+  collabDetails  Json?
   // scoping
   organization     Organization    @relation(fields: [organizationId], references: [id])
   organizationId   String
