@@ -9,6 +9,7 @@ import importRoutes from './routes/import.js';
 import uploadsRoutes from './routes/uploads.js';
 import dashboardRoutes from './routes/dashboard.js';
 import inviteRoutes from './routes/invite.js';
+import organizationsRoute from './routes/organizations.js';
 
 dotenv.config();
 
@@ -26,6 +27,7 @@ app.use('/uploads', uploadsRoutes);     // File upload routes
 app.use('/dashboard', dashboardRoutes); // Admin dashboard data
 app.use('/entries', entriesRoutes);
 app.use('/invite', inviteRoutes);
+app.use('/api/organizations', organizationsRoute);
 
 // Health check
 app.get('/', (req, res) => {
