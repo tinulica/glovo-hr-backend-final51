@@ -60,7 +60,6 @@ export const updateEntry = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Ensure the entry belongs to this org
     const existing = await prisma.entry.findUnique({
       where: { id },
     });
@@ -70,6 +69,15 @@ export const updateEntry = async (req, res) => {
     }
 
     const { salary, ...updateData } = req.body;
+
+    // Ensure collabDetails is stored as valid JSON if passed as a string
+    if (typeof updateData.collabDetails === 'string') {
+      try {
+        updateData.collabDetails = JSON.parse(updateData.collabDetails);
+      } catch (e) {
+        return res.status(400).json({ message: "Invalid JSON for collabDetails." });
+      }
+    }
 
     const updated = await prisma.entry.update({
       where: { id },
