@@ -25,7 +25,7 @@ export default async function auth(req, res, next) {
       return res.status(401).json({ message: 'Invalid or expired token' });
     }
 
-    // 4. Payload must contain at least user id or email
+    // 4. Determine how to look up the user
     const lookup = {};
     if (payload.id) {
       lookup.id = payload.id;
@@ -35,30 +35,30 @@ export default async function auth(req, res, next) {
       return res.status(401).json({ message: 'Token payload missing user identifier' });
     }
 
-    // 5. Fetch user to get fresh orgId (and ensure they still exist)
+    // 5. Fetch user to confirm validity and fetch latest org info
     const user = await prisma.user.findUnique({
       where: lookup,
-      select: { id: true, email: true, organizationId: true },
+      select: {
+        id: true,
+        email: true,
+        organizationId: true,
+      },
     });
+
     if (!user) {
       return res.status(401).json({ message: 'User no longer exists' });
     }
 
-    // 6. Must belong to an organization
-    if (!user.organizationId) {
-      return res.status(403).json({ message: 'No organization assigned to this user' });
-    }
-
-    // 7. Attach to req for downstream handlers
+    // 6. If detached user is visiting another org's entry, we allow orgId to be optional
     req.user = {
       id: user.id,
       email: user.email,
-      orgId: user.organizationId,
+      orgId: user.organizationId || null, // May be null for external collaborators
     };
 
     next();
   } catch (err) {
     console.error('Auth middleware error:', err);
-    res.status(500).json({ message: 'Internal auth error' });
+    res.status(500).json({ message: 'Internal authentication error' });
   }
 }
