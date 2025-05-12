@@ -1,3 +1,4 @@
+// src/controllers/entriesController.js
 import prisma from "../lib/prisma.js";
 import parseXLSX from "../utils/parseXLSX.js";
 import generateExcelFromEntries from "../utils/generateExcel.js";
@@ -8,7 +9,6 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// List entries for the user's organization
 export const listEntries = async (req, res) => {
   try {
     const entries = await prisma.entry.findMany({
@@ -22,7 +22,6 @@ export const listEntries = async (req, res) => {
   }
 };
 
-// Add a new entry manually (scoped)
 export const addEntryManually = async (req, res) => {
   try {
     const {
@@ -55,7 +54,6 @@ export const addEntryManually = async (req, res) => {
   }
 };
 
-// Update entry (scoped)
 export const updateEntry = async (req, res) => {
   try {
     const { id } = req.params;
@@ -101,7 +99,7 @@ export const updateEntry = async (req, res) => {
     if (salary !== undefined && !isNaN(salary)) {
       const latest = await prisma.salaryHistory.findFirst({
         where: { entryId: id },
-        orderBy: { changedAt: 'desc' },
+        orderBy: { date: 'desc' },
       });
 
       const different = !latest || parseFloat(latest.amount) !== parseFloat(salary);
@@ -114,7 +112,6 @@ export const updateEntry = async (req, res) => {
             date: new Date(),
             hours: 8,
             net: parseFloat(salary),
-            changedAt: new Date(),
           },
         });
       }
@@ -127,11 +124,9 @@ export const updateEntry = async (req, res) => {
   }
 };
 
-// Delete entry (scoped)
 export const deleteEntry = async (req, res) => {
   try {
     const { id } = req.params;
-
     const entry = await prisma.entry.findUnique({ where: { id } });
 
     if (!entry || entry.organizationId !== req.user.orgId) {
@@ -146,7 +141,6 @@ export const deleteEntry = async (req, res) => {
   }
 };
 
-// Import entries (scoped)
 export const importEntries = async (req, res) => {
   try {
     const file = req.file;
@@ -224,7 +218,66 @@ export const importEntries = async (req, res) => {
   }
 };
 
-// Email latest salary info
+export const exportEntries = async (req, res) => {
+  try {
+    const { columns, dateRange } = req.body;
+
+    const entries = await prisma.entry.findMany({
+      where: { organizationId: req.user.orgId },
+      include: { salaryHistories: true },
+    });
+
+    const buffer = await generateExcelFromEntries(entries, columns, dateRange);
+
+    res.setHeader('Content-Disposition', 'attachment; filename=entries.xlsx');
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.send(buffer);
+  } catch (error) {
+    console.error("Export entries error:", error);
+    res.status(500).json({ message: "Failed to export entries" });
+  }
+};
+
+export const getSalaryHistory = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const history = await prisma.salaryHistory.findMany({
+      where: { entryId: id },
+      orderBy: { date: 'desc' }
+    });
+
+    res.json(history);
+  } catch (error) {
+    console.error("Salary history error:", error);
+    res.status(500).json({ message: "Failed to get salary history" });
+  }
+};
+
+export const exportSalaryById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const entry = await prisma.entry.findUnique({
+      where: { id },
+      include: { salaryHistories: true },
+    });
+
+    if (!entry || entry.organizationId !== req.user.orgId) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    const buffer = await generateExcelFromEntries([entry]);
+
+    res.setHeader('Content-Disposition', `attachment; filename=${entry.fullName}_salary.xlsx`);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.send(buffer);
+  } catch (error) {
+    console.error("Export salary by ID error:", error);
+    res.status(500).json({ message: "Failed to export salary history" });
+  }
+};
+
 export const emailSalaryById = async (req, res) => {
   try {
     const { id } = req.params;
