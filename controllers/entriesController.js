@@ -85,7 +85,6 @@ export const updateEntry = async (req, res) => {
       collabDetails: collabDetails || {}
     };
 
-    // Ensure collabDetails is valid JSON
     if (typeof updateData.collabDetails === 'string') {
       try {
         updateData.collabDetails = JSON.parse(updateData.collabDetails);
@@ -222,5 +221,40 @@ export const importEntries = async (req, res) => {
   } catch (error) {
     console.error("Import error:", error);
     res.status(500).json({ message: "Failed to import entries" });
+  }
+};
+
+// Email latest salary info
+export const emailSalaryById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const entry = await prisma.entry.findUnique({
+      where: { id },
+      include: { salaryHistories: true }
+    });
+
+    if (!entry || entry.organizationId !== req.user.orgId) {
+      return res.status(404).json({ message: "Entry not found or access denied" });
+    }
+
+    const latestSalary = entry.salaryHistories.sort((a, b) =>
+      new Date(b.date) - new Date(a.date)
+    )[0];
+
+    if (!latestSalary) {
+      return res.status(400).json({ message: "No salary data available for this entry" });
+    }
+
+    await gmailMailer({
+      to: entry.email,
+      subject: `Latest Salary Info for ${entry.fullName}`,
+      text: `Dear ${entry.fullName},\n\nYour latest salary is €${latestSalary.amount.toFixed(2)} as of ${new Date(latestSalary.date).toLocaleDateString()}.\n\nBest regards,\nHR Team`,
+    });
+
+    res.json({ message: "Email sent successfully" });
+  } catch (error) {
+    console.error("Email salary error:", error);
+    res.status(500).json({ message: "Failed to send salary email." });
   }
 };
