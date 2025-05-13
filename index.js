@@ -15,8 +15,9 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// index.js
 app.use(cors({
-  origin: 'https://frontend1-95tx.onrender.com',
+  origin: process.env.FRONTEND_URL,
   credentials: true
 }));
 app.use(express.json());
