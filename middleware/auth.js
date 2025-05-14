@@ -14,7 +14,6 @@ export default async function auth(req, res, next) {
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
 
-    // ✅ Fetch fresh user data from DB
     const user = await prisma.user.findUnique({
       where: { id: payload.id },
       select: {
@@ -22,7 +21,8 @@ export default async function auth(req, res, next) {
         email: true,
         hasCompletedSetup: true,
         organizationId: true,
-        role: true
+        role: true,
+        displayOrgName: true
       }
     });
 
@@ -35,7 +35,8 @@ export default async function auth(req, res, next) {
       email: user.email,
       hasCompletedSetup: user.hasCompletedSetup,
       orgId: user.organizationId,
-      role: user.role
+      role: user.role,
+      displayOrgName: user.displayOrgName
     };
 
     next();
