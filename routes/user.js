@@ -1,29 +1,31 @@
-// routes/user.js
+// src/routes/user.js
 import express from 'express';
-import prisma from '../lib/prisma.js';
 import auth from '../middleware/auth.js';
+import prisma from '../lib/prisma.js';
 
 const router = express.Router();
 
 router.put('/display-org-name', auth, async (req, res) => {
-  const { name } = req.body;
-  if (!name) return res.status(400).json({ message: 'Missing name' });
+  const { displayOrgName } = req.body;
 
-  const user = await prisma.user.update({
-    where: { id: req.user.id },
-    data: { displayOrgName: name }
-  });
+  if (!displayOrgName) {
+    return res.status(400).json({ message: 'Display organization name is required.' });
+  }
 
-  res.json({ success: true, name: user.displayOrgName });
+  try {
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: {
+        displayOrgName,
+        hasCompletedSetup: true,
+      },
+    });
+
+    res.status(200).json({ message: 'Organization display name updated successfully.' });
+  } catch (error) {
+    console.error('Error updating display organization name:', error);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
 });
 
-router.get('/display-org-name', auth, async (req, res) => {
-  const user = await prisma.user.findUnique({
-    where: { id: req.user.id },
-    select: { displayOrgName: true }
-  });
-
-  res.json({ displayOrgName: user?.displayOrgName || '' });
-});
-
-export default router;
+export default router;:contentReference[oaicite:34]{index=34}
