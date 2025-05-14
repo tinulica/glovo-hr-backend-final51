@@ -19,19 +19,31 @@ export default async function auth(req, res, next) {
       select: {
         id: true,
         email: true,
-        hasCompletedSetup: true,
+        fullName: true,
         organizationId: true,
-        displayOrgName: true, // ✅ Include displayOrgName
-      },
+        hasCompletedSetup: true,
+        displayOrgName: true,
+        role: true // only if you've added this field in schema
+      }
     });
 
     if (!user) {
       return res.status(401).json({ message: 'User not found' });
     }
 
-    req.user = user;
+    req.user = {
+      id: user.id,
+      email: user.email,
+      fullName: user.fullName,
+      orgId: user.organizationId,
+      hasCompletedSetup: user.hasCompletedSetup,
+      displayOrgName: user.displayOrgName,
+      role: user.role
+    };
+
     next();
   } catch (err) {
     console.error('❌ Auth error:', err);
     return res.status(401).json({ message: 'Invalid token' });
   }
+}
