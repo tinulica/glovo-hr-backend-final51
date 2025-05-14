@@ -1,30 +1,32 @@
+// src/routes/organizations.js
 import express from 'express';
 import prisma from '../lib/prisma.js';
 import auth from '../middleware/auth.js';
+import crypto from 'crypto';
 
 const router = express.Router();
 
 router.post('/', auth, async (req, res) => {
   try {
-    console.log('📨 Incoming setupOrganization request...');
     console.log('🧠 User:', req.user);
     console.log('📦 Body:', req.body);
 
-    const { name, bio = '', invites = [] } = req.body;
+    const existingOrg = await prisma.organization.findUnique({
+      where: { ownerId: req.user.id }
+    });
 
-    if (!name || !req.user?.id) {
-      console.warn('⚠️ Missing name or user ID');
-      return res.status(400).json({ message: 'Missing required fields' });
+    if (existingOrg) {
+      return res.status(409).json({ message: 'You already created an organization.' });
     }
+
+    const { name, bio = '', invites = [] } = req.body;
 
     const organization = await prisma.organization.create({
       data: {
         name,
         bio,
         ownerId: req.user.id,
-        members: {
-          connect: { id: req.user.id }
-        }
+        members: { connect: { id: req.user.id } }
       }
     });
 
