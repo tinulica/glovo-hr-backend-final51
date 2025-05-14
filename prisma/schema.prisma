@@ -1,5 +1,3 @@
-// prisma/schema.prisma
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,71 +8,68 @@ datasource db {
 }
 
 model User {
-  id                 String           @id @default(uuid())
-  email              String           @unique
-  password           String
-  fullName           String?
-  displayOrgName     String?          // ✅ NEW: custom display name set via OrgSetup
-  organizationId     String?
-  organization       Organization?    @relation("OrgMembers", fields: [organizationId], references: [id])
-  organizationsOwned Organization[]   @relation("OrgOwner")
-  entries            Entry[]
-  importSessions     ImportSession[]  @relation("SessionCreator")
-  invitationsSent    Invitation[]     @relation("Inviter")
-  invitationsReceived Invitation[]    @relation("Invitee")
-  resetTokens        ResetToken[]
-  hasCompletedSetup  Boolean          @default(false)
-  createdAt          DateTime         @default(now())
+  id                   String           @id @default(uuid())
+  email                String           @unique
+  password             String
+  fullName             String?
+  role                 String           @default("user") // ✅ NEW FIELD
+  displayOrgName       String?          // ✅ Used for custom org display name
+  organizationId       String?
+  organization         Organization?    @relation("OrgMembers", fields: [organizationId], references: [id])
+  organizationsOwned   Organization[]   @relation("OrgOwner")
+  entries              Entry[]
+  importSessions       ImportSession[]  @relation("SessionCreator")
+  invitationsSent      Invitation[]     @relation("Inviter")
+  invitationsReceived  Invitation[]     @relation("Invitee")
+  resetTokens          ResetToken[]
+
+  hasCompletedSetup    Boolean          @default(false)
+  createdAt            DateTime         @default(now())
 }
 
 model Organization {
-  id          String    @id @default(uuid())
-  name        String
-   bio            String?   // Optional bio
-  hasCompletedSetup Boolean @default(false) // ⬆️ New field
-  // exactly one owner
-  ownerId     String    @unique
-  owner       User      @relation("OrgOwner", fields: [ownerId], references: [id])
-  // all members (including owner)
-  members     User[]    @relation("OrgMembers")
-  // all sessions, entries, invites under this org
-  importSessions ImportSession[]
-  entries        Entry[]
-  invitations    Invitation[]
+  id                String          @id @default(uuid())
+  name              String
+  bio               String?
+  hasCompletedSetup Boolean         @default(false)
+  ownerId           String          @unique
+  owner             User            @relation("OrgOwner", fields: [ownerId], references: [id])
+  members           User[]          @relation("OrgMembers")
+  importSessions    ImportSession[]
+  entries           Entry[]
+  invitations       Invitation[]
 
-  createdAt   DateTime  @default(now())
+  createdAt         DateTime        @default(now())
 }
 
 model Entry {
-  id             String    @id @default(uuid())
-  fullName       String
-  email          String
-  platform       String
-  externalId     String?
-  companyName    String?
-  iban           String?
-  bankName       String?
-  beneficiary    String?
-  createdAt      DateTime  @default(now())
-  collabType     String?
-  collabDetails  Json?
+  id               String     @id @default(uuid())
+  fullName         String
+  email            String
+  platform         String
+  externalId       String?
+  companyName      String?
+  iban             String?
+  bankName         String?
+  beneficiary      String?
+  createdAt        DateTime   @default(now())
+  collabType       String?
+  collabDetails    Json?
 
-  organization     Organization    @relation(fields: [organizationId], references: [id])
+  organization     Organization  @relation(fields: [organizationId], references: [id])
   organizationId   String
-  createdBy        User            @relation(fields: [createdById], references: [id])
+  createdBy        User          @relation(fields: [createdById], references: [id])
   createdById      String
 
-  importSession    ImportSession?  @relation(fields: [importSessionId], references: [id])
+  importSession    ImportSession? @relation(fields: [importSessionId], references: [id])
   importSessionId  String?
 
   salaryHistories  SalaryHistory[]
 }
 
-
-
 model SalaryHistory {
-  id        String    @id @default(uuid())
-  entry     Entry     @relation(fields: [entryId], references: [id])
+  id        String   @id @default(uuid())
+  entry     Entry    @relation(fields: [entryId], references: [id])
   entryId   String
   amount    Float
   date      DateTime
@@ -83,57 +78,43 @@ model SalaryHistory {
 }
 
 model UploadedFile {
-  id             String         @id @default(uuid())
-  name           String
-  url            String?
-  // back-relation; each file may belong to one import session
-  importSession  ImportSession? 
+  id            String        @id @default(uuid())
+  name          String
+  url           String?
+  importSession ImportSession?
 }
 
 model ImportSession {
   id             String         @id @default(uuid())
   createdAt      DateTime       @default(now())
   platform       String
-
-  // who ran it
   createdBy      User           @relation("SessionCreator", fields: [createdById], references: [id])
   createdById    String
-
-  // which org
   organization   Organization   @relation(fields: [organizationId], references: [id])
   organizationId String
-
-  // upload
   file           UploadedFile   @relation(fields: [fileId], references: [id])
   fileId         String         @unique
-
-  // entries linked to this session
   entries        Entry[]
-
 }
 
 model Invitation {
-  id             String         @id @default(uuid())
-  token          String         @unique
-  invitedEmail   String
-  createdAt      DateTime       @default(now())
-
-  inviterId      String?        // temporarily optional
-  inviter        User?          @relation("Inviter", fields: [inviterId], references: [id])
-
-  inviteeId      String?
-  invitee        User?          @relation("Invitee", fields: [inviteeId], references: [id])
-
-  organizationId String
-  organization   Organization   @relation(fields: [organizationId], references: [id])
+  id               String       @id @default(uuid())
+  token            String       @unique
+  invitedEmail     String
+  createdAt        DateTime     @default(now())
+  inviterId        String?
+  inviter          User?        @relation("Inviter", fields: [inviterId], references: [id])
+  inviteeId        String?
+  invitee          User?        @relation("Invitee", fields: [inviteeId], references: [id])
+  organizationId   String
+  organization     Organization @relation(fields: [organizationId], references: [id])
 }
 
 model ResetToken {
-  id        String    @id @default(uuid())
-  token     String    @unique
-  createdAt DateTime  @default(now())
+  id        String   @id @default(uuid())
+  token     String   @unique
+  createdAt DateTime @default(now())
   expiresAt DateTime
-
-  user      User      @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
   userId    String
 }
