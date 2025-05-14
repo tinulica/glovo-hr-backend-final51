@@ -35,4 +35,3 @@ export default async function auth(req, res, next) {
     console.error('❌ Auth error:', err);
     return res.status(401).json({ message: 'Invalid token' });
   }
-}:contentReference[oaicite:46]{index=46}
