@@ -1,68 +1,42 @@
-// src/routes/organizations.js
-
 import express from 'express';
 import prisma from '../lib/prisma.js';
-import auth from '../middleware/auth.js'; // Correct import
-import { v4 as uuidv4 } from 'uuid';
+import auth from '../middleware/auth.js'; // make sure you have JWT middleware
 
 const router = express.Router();
 
-// GET /api/organizations - List all orgs except the current user's own
-router.get('/', auth, async (req, res) => {
+// POST /api/organizations
+// Create an organization and assign it to the logged-in user
+router.post('/', auth, async (req, res) => {
   try {
-    const orgs = await prisma.organization.findMany({
-      where: {
-        id: { not: req.user.orgId } // Exclude current user's org
-      },
-      select: {
-        id: true,
-        name: true
-      }
-    });
+    const { name, bio = '', invites = [] } = req.body;
 
-    res.json(orgs);
-  } catch (error) {
-    console.error('Fetch organizations error:', error);
-    res.status(500).json({ message: 'Failed to fetch organizations' });
-  }
-});
+    if (!name || !req.user?.id) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
 
-// POST /api/organizations/setup - Complete org profile and invite users
-router.post('/setup', auth, async (req, res) => {
-  try {
-    const { name, bio, invites = [] } = req.body;
-
-    // Update the organization profile
-    await prisma.organization.update({
-      where: { id: req.user.orgId },
+    // Create organization
+    const organization = await prisma.organization.create({
       data: {
         name,
         bio,
-        hasCompletedSetup: true
+        ownerId: req.user.id
       }
     });
 
-    // Process user invites
-    for (const email of invites) {
-      if (!email.trim()) continue;
+    // Update user to belong to this organization
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: { organizationId: organization.id }
+    });
 
-      const exists = await prisma.user.findUnique({ where: { email } });
-      if (exists) continue;
+    // Optionally: invite emails (if you want to handle them)
+    // For now we just log them — you can extend this with actual invite creation
+    console.log('Inviting:', invites);
 
-      await prisma.invitation.create({
-        data: {
-          token: uuidv4(),
-          invitedEmail: email,
-          inviterId: req.user.id,
-          organizationId: req.user.orgId
-        }
-      });
-    }
-
-    res.json({ success: true });
+    return res.json({ success: true, organizationId: organization.id });
   } catch (err) {
-    console.error('Org setup error:', err);
-    res.status(500).json({ message: 'Organization setup failed' });
+    console.error('Error creating organization:', err);
+    return res.status(500).json({ message: 'Failed to create organization' });
   }
 });
 
