@@ -4,34 +4,30 @@ import auth from '../middleware/auth.js';
 
 const router = express.Router();
 
-/**
- * POST /api/organizations
- * - Creates a new organization with `name`, optional `bio`
- * - Sets current user as owner
- * - Updates the user's organizationId
- * - Returns { success: true, organizationId }
- */
 router.post('/', auth, async (req, res) => {
   try {
+    console.log('📨 Incoming setupOrganization request...');
+    console.log('🧠 User:', req.user);
+    console.log('📦 Body:', req.body);
+
     const { name, bio = '', invites = [] } = req.body;
 
     if (!name || !req.user?.id) {
+      console.warn('⚠️ Missing name or user ID');
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
-    // Create the new organization
     const organization = await prisma.organization.create({
       data: {
         name,
         bio,
         ownerId: req.user.id,
         members: {
-          connect: { id: req.user.id } // add creator to members
+          connect: { id: req.user.id }
         }
       }
     });
 
-    // Update the user to point to this new org
     await prisma.user.update({
       where: { id: req.user.id },
       data: {
@@ -40,7 +36,6 @@ router.post('/', auth, async (req, res) => {
       }
     });
 
-    // Optional: store invite emails (not full logic, but placeholder)
     if (invites.length) {
       for (const email of invites.filter(e => e.trim())) {
         await prisma.invitation.create({
@@ -54,9 +49,10 @@ router.post('/', auth, async (req, res) => {
       }
     }
 
+    console.log('✅ Organization created successfully.');
     return res.status(201).json({ success: true, organizationId: organization.id });
   } catch (err) {
-    console.error('🚨 Error in POST /api/organizations:', err);
+    console.error('❌ Error creating organization:', err);
     return res.status(500).json({ message: 'Internal server error' });
   }
 });
