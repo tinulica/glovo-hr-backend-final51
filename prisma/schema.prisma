@@ -24,7 +24,7 @@ model User {
   hasCompletedSetup  Boolean          @default(false)
   displayOrgName     String?          // ✅ New field for custom organization name
   createdAt          DateTime         @default(now())
-}:contentReference[oaicite:22]{index=22}
+}
 
 
 model Organization {
