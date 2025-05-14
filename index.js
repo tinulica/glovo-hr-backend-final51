@@ -16,10 +16,14 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // index.js
+const cors = require('cors');
+
+// ADD THIS BEFORE ROUTES
 app.use(cors({
-  origin: process.env.FRONTEND_URL,
+  origin: 'https://frontend1-95tx.onrender.com',
   credentials: true
 }));
+
 app.use(express.json());
 
 // Routes
