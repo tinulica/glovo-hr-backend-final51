@@ -1,4 +1,3 @@
-// src/middleware/auth.js
 import jwt from 'jsonwebtoken';
 import prisma from '../lib/prisma.js';
 
@@ -23,7 +22,6 @@ export default async function auth(req, res, next) {
         organizationId: true,
         hasCompletedSetup: true,
         displayOrgName: true,
-        role: true // only if you've added this field in schema
       }
     });
 
@@ -38,12 +36,11 @@ export default async function auth(req, res, next) {
       orgId: user.organizationId,
       hasCompletedSetup: user.hasCompletedSetup,
       displayOrgName: user.displayOrgName,
-      role: user.role
     };
 
     next();
   } catch (err) {
-    console.error('❌ Auth error:', err);
+    console.error('â Auth error:', err);
     return res.status(401).json({ message: 'Invalid token' });
   }
 }
