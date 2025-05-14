@@ -21,27 +21,18 @@ export default async function auth(req, res, next) {
         email: true,
         hasCompletedSetup: true,
         organizationId: true,
-        role: true,
-        displayOrgName: true
-      }
+        displayOrgName: true, // ✅ Include displayOrgName
+      },
     });
 
     if (!user) {
       return res.status(401).json({ message: 'User not found' });
     }
 
-    req.user = {
-      id: user.id,
-      email: user.email,
-      hasCompletedSetup: user.hasCompletedSetup,
-      orgId: user.organizationId,
-      role: user.role,
-      displayOrgName: user.displayOrgName
-    };
-
+    req.user = user;
     next();
   } catch (err) {
     console.error('❌ Auth error:', err);
     return res.status(401).json({ message: 'Invalid token' });
   }
-}
+}:contentReference[oaicite:46]{index=46}
