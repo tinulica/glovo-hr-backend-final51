@@ -22,7 +22,7 @@ router.delete('/reset', async (req, res) => {
     const admin = await prisma.user.create({
       data: {
         email: 'admin@example.com',
-        password: hashed,
+        password: supersecurepassword,
         fullName: 'Admin User',
         hasCompletedSetup: true
       }
