@@ -8,24 +8,24 @@ datasource db {
 }
 
 model User {
-  id                   String           @id @default(uuid())
-  email                String           @unique
-  password             String
-  fullName             String?
-  role                 String           @default("user") // ✅ NEW FIELD
-  displayOrgName       String?          // ✅ Used for custom org display name
-  organizationId       String?
-  organization         Organization?    @relation("OrgMembers", fields: [organizationId], references: [id])
-  organizationsOwned   Organization[]   @relation("OrgOwner")
-  entries              Entry[]
-  importSessions       ImportSession[]  @relation("SessionCreator")
-  invitationsSent      Invitation[]     @relation("Inviter")
-  invitationsReceived  Invitation[]     @relation("Invitee")
-  resetTokens          ResetToken[]
+  id                 String           @id @default(uuid())
+  email              String           @unique
+  password           String
+  fullName           String?
+  organizationId     String?
+  organization       Organization?    @relation("OrgMembers", fields: [organizationId], references: [id])
+  organizationsOwned Organization[]   @relation("OrgOwner")
+  entries            Entry[]
+  importSessions     ImportSession[]  @relation("SessionCreator")
+  invitationsSent    Invitation[]     @relation("Inviter")
+  invitationsReceived Invitation[]    @relation("Invitee")
+  resetTokens        ResetToken[]
 
-  hasCompletedSetup    Boolean          @default(false)
-  createdAt            DateTime         @default(now())
-}
+  hasCompletedSetup  Boolean          @default(false)
+  displayOrgName     String?          // ✅ New field for custom organization name
+  createdAt          DateTime         @default(now())
+}:contentReference[oaicite:22]{index=22}
+
 
 model Organization {
   id                String          @id @default(uuid())
