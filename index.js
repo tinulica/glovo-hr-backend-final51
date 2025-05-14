@@ -9,6 +9,7 @@ import uploadsRoutes from './routes/uploads.js';
 import dashboardRoutes from './routes/dashboard.js';
 import inviteRoutes from './routes/invite.js';
 import organizationsRoute from './routes/organizations.js';
+import userRoutes from './routes/user.js';
 
 dotenv.config();
 
@@ -32,6 +33,7 @@ app.use('/dashboard', dashboardRoutes);
 app.use('/entries', entriesRoutes);
 app.use('/invite', inviteRoutes);
 app.use('/api/organizations', organizationsRoute);
+app.use('/user', userRoutes);
 
 // ✅ Health check route
 app.get('/', (req, res) => {
