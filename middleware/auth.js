@@ -20,9 +20,8 @@ export default async function auth(req, res, next) {
         email: true,
         fullName: true,
         organizationId: true,
-        hasCompletedSetup: true,
         displayOrgName: true,
-      }
+      },
     });
 
     if (!user) {
@@ -34,13 +33,12 @@ export default async function auth(req, res, next) {
       email: user.email,
       fullName: user.fullName,
       orgId: user.organizationId,
-      hasCompletedSetup: user.hasCompletedSetup,
       displayOrgName: user.displayOrgName,
     };
 
     next();
   } catch (err) {
-    console.error('â Auth error:', err);
+    console.error('❌ Auth error:', err);
     return res.status(401).json({ message: 'Invalid token' });
   }
 }
