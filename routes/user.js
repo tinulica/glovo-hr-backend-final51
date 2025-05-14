@@ -28,4 +28,4 @@ router.put('/display-org-name', auth, async (req, res) => {
   }
 });
 
-export default router;:contentReference[oaicite:34]{index=34}
+export default router;
