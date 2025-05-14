@@ -15,15 +15,15 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ✅ CORS setup
+// ✅ Proper CORS setup
 app.use(cors({
-  origin: 'https://frontend1-95tx.onrender.com',
+  origin: 'https://frontend1-95tx.onrender.com', // your live frontend URL
   credentials: true
 }));
 
 app.use(express.json());
 
-// Routes
+// ✅ All routes
 app.use('/auth', authRoutes);
 app.use('/password', passwordRoutes);
 app.use('/import', importRoutes);
@@ -33,16 +33,17 @@ app.use('/entries', entriesRoutes);
 app.use('/invite', inviteRoutes);
 app.use('/api/organizations', organizationsRoute);
 
-// Health check
+// ✅ Health check route
 app.get('/', (req, res) => {
   res.send('✅ Glovo HR Backend Running');
 });
 
-// 404 handler
+// ✅ 404 fallback route
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
+// ✅ Start server
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
